@@ -1,6 +1,7 @@
 #include "PCB.h"
 #include "FIFOq.h"
 #include "READYq.h"
+#include "errors.h"
 #include <stdlib.h>
 #include <stdio.h>
 

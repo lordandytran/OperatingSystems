@@ -4,9 +4,6 @@
 #include "FIFOq.h"
 #include <stdlib.h>
 
-#define READYQNULL 7187
-#define PCBNULL 7193
-
 typedef struct readyq {
 	
 	FIFOq_p queue_array[16];

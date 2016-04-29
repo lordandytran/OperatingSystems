@@ -1,4 +1,5 @@
 #include "PCB.h"
+#include "errors.h"
 #include <stdlib.h>
 #include <stdio.h>
 

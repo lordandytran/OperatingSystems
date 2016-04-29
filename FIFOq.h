@@ -1,9 +1,6 @@
 #ifndef FIFOq_H
 #define FIFOq_H
 
-#define QNULLERROR 4127
-#define NODENULLERROR 4129
-
 typedef struct LinkedListQueue {
 
 	int size;
