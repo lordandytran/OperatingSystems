@@ -1,4 +1,5 @@
 #include "FIFOq.h"
+#include "PCB.h"
 #include "errors.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -91,4 +92,20 @@ int FIFOq_getSize(FIFOq_p queue, int* error) {
 		return -1;
 	}
 	return queue->size;
+}
+
+char* FIFOq_toString(FIFOq_p queue, int* error) {
+	char* str = malloc(512);
+	char* node = malloc(16);
+	sprintf(str, "Q:Count=%d: ", FIFOq_getSize(queue, error));
+	struct Node* temp = queue->front;
+	while (temp != NULL) {
+		sprintf(node, "P%u->", ((PCB_p)temp->value)->pid);
+ 		strcat(str, node);
+ 		temp = temp->next;
+	}
+	strcat(str, "*");
+	free(node);
+	free(temp);
+	return str;
 }
