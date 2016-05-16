@@ -94,6 +94,7 @@ int FIFOq_getSize(FIFOq_p queue, int* error) {
 	return queue->size;
 }
 
+/*
 char* FIFOq_toString(FIFOq_p queue, int* error) {
 	char* str = malloc(512);
 	char* node = malloc(16);
@@ -108,4 +109,4 @@ char* FIFOq_toString(FIFOq_p queue, int* error) {
 	free(node);
 	free(temp);
 	return str;
-}
+}*/

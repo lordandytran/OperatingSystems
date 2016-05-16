@@ -26,25 +26,32 @@ int PCB_init(PCB_p pcb, int* error) {
 	return SUCCESS;
 }
 
-int PCB_set_pid(PCB_p pcb, unsigned long pid, int* error) {
-	if (pcb == NULL) {
-		*error = PCBNULLERROR;
-		printf("PCB is NULL on PCB_set_pid(PCB_p, unsigned long, int*) call. ERROR: %d\n", *error);
-		return FAILURE;
+char* PCB_state(PCB_p pcb) {
+	char* state = malloc(15);
+	switch (pcb->state) {
+		case 0:
+			state = "new";
+			break;
+		case 1:
+			state = "ready";
+			break;
+		case 2:
+			state = "interrupted";
+			break;
+		case 3:
+			state = "waiting";
+			break;
+		case 4:
+			state = "halted";
+			break;
+		default:
+			state = "FATAL ERROR";
+			break;
 	}
-	pcb->pid = pid;
-	return SUCCESS;
+	return state;
 }
 
-unsigned long PCB_get_pid(PCB_p pcb, int* error) {
-	if (pcb == NULL) {
-		*error = PCBNULLERROR;
-		printf("PCB is NULL on PCB_get_pid(PCB_p, int*) call. ERROR: %d\n", *error);
-		return FAILURE;
-	}
-	return pcb->pid;
-}
-
+/*
 char* PCB_toString(PCB_p pcb, int* error) {
 	if (pcb == NULL) {
 		*error = PCBNULLERROR;
@@ -59,4 +66,4 @@ char* PCB_toString(PCB_p pcb, int* error) {
 	}
 	sprintf(str, "PID: 0x%X, State: %d, Priority: 0x%X, PC: 0x%X\n", pcb->pid, (int)pcb->state, pcb->priority, pcb->pc);
 	return str;
-}
+}*/
