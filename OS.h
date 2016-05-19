@@ -9,10 +9,12 @@ unsigned long SysStack;
 int processes;
 PCB_p current_pcb;
 PCB_p idle_pcb;
+FIFOq_p created_PCBs;
 FIFOq_p ready_PCBs;
 FIFOq_p terminated_PCBs;
 
 //prototypes
+void initialize();
 void os_loop();
 void generate_processes();
 void perform_ISR();
