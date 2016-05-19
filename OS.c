@@ -69,17 +69,14 @@ void perform_ISR() {
 void scheduler(enum Interrupt interrupt) {
 	int* error = 0;
 
-	int i;
 	PCB_p dequeued;
 	while (created_PCBs->size != 0) { //can use the isEmpty method as well
 		dequeued = (PCB_p)FIFOq_dequeue(created_PCBs, error); //casting with abandon.
 		dequeued->state = running;
 		FIFOq_enqueue(ready_PCBs, dequeued, error);
 	}
-	free(dequeued);
 
 	PCB_p previous;
-
 	switch (interrupt) {
 	case timer_interrupt:
 		previous = current_pcb;
@@ -96,14 +93,16 @@ void scheduler(enum Interrupt interrupt) {
 			cswitch_no--;
 		break;
 	}
-	free(previous);
 
 	//Only destroy after all PCB's have been terminated and in the queue. Rewrite, yo!
 	while (terminated_PCBs->size != 0) {
-		PCB_p teminated = FIFOq_dequeue(terminated_PCBs, error);
-		PCB_destruct(terminated_PCBs);
+		PCB_p terminated = FIFOq_dequeue(terminated_PCBs, error);
+		PCB_destruct(terminated);
 	}
 
+	//This causes errors. I don't know why. Probably freeing without initialization. Just a guess.
+	//free(previous);
+	//free(dequeued);
 }
 
 void dispatcher() {
