@@ -37,18 +37,22 @@ int Mutex_unlock(Mutex_p mut, PCB_p pcb) {
 		mut->locked = FALSE;
 		return TRUE;
 	}
+	FIFOq_enqueue(mut->wait, pcb, error);
 	return FALSE;
 }
 
 //replace controller with given and locks. True if successful. False if failed.
 int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
+	int* error = 0;
 	if (mut->locked == FALSE) {
 		mut->pcbID = pcb->pid;
 		mut->locked = TRUE;
 		return TRUE;
 	}
-	else
+	else {
+		FIFOq_enqueue(mut->wait, pcb, error);
 		return FALSE;
+	}
 }
 
 //Force unlocks and replaces controller with next in queue.
