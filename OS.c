@@ -1,121 +1,105 @@
-#include "errors.h"
-#include "PCB.h"
-#include "FIFOq.h"
 #include "OS.h"
+#include "Mutex.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-
-//Vitaliy's comments were so bad
 void initialize() {
-	int* error = 0;
+    // Initialize all of the queues.
+    io1_PCBs = FIFOq_construct();
+    io2_PCBs = FIFOq_construct();
+    ready_PCBs = PriorityQ_construct();
+    terminated_PCBs = FIFOq_construct();
 
-	cswitch_no = 0;
-	PC = 0;
-	processes = 0;
 
-	created_PCBs = FIFOq_construct();
-	io1_PCBs = FIFOq_construct();
-	io2_PCBs = FIFOq_construct();
-	ready_PCBs = READYq_construct();
-	terminated_PCBs = FIFOq_construct();
-
-	idle_pcb = PCB_construct();
-	PCB_init(idle_pcb, error);
-
-	idle_pcb->state = running;
-	idle_pcb->pc = PC;
-	idle_pcb->pid = 0xFFFFFFFF;
-
-	current_pcb = idle_pcb;
 }
 
-void os_loop() {
-	generate_processes();
+void generatePCBs(unsigned short priority, enum pcb_type type, int amount) {
+    int error;
+    for(int i = 0; i < amount; i++) {
+        PCB_p newPCB = PCB_construct();
+        PCB_init(newPCB, &error);
+        newPCB->type = type;
+        newPCB->priority = priority;
+        newPCB->state = ready;
 
-	PC += ((rand() % 1000) + 3000);
-	current_pcb->pc = PC;
 
-	SysStack = PC;
+        Mutex_p producer_Mutex;
 
-	perform_ISR();
+
+        switch (type) {
+            case filler:
+                break;
+            case io:
+                populateIOTrapArrays(newPCB, 1);
+                populateIOTrapArrays(newPCB, 2);
+                break;
+            case resource_user: {
+                PCB_p pardner = PCB_construct();
+                PCB_init(pardner, &error);
+                pardner->type = resource_user;
+                pardner->priority = priority;
+                pardner->state = ready;
+                producer_Mutex = Mutex_constructor();
+                pardner->mutex_point = producer_Mutex;
+                newPCB->mutex_point = producer_Mutex;
+                PriorityQ_enqueue(ready_PCBs, pardner, &error);
+                break;
+            }
+            case producer: {
+                PCB_p pardner = PCB_construct();
+                PCB_init(pardner, &error);
+                pardner->type = consumer;
+                pardner->priority = priority;
+                pardner->state = ready;
+                producer_Mutex = Mutex_constructor();
+                pardner->mutex_point = producer_Mutex;
+                newPCB->mutex_point = producer_Mutex;
+                PriorityQ_enqueue(ready_PCBs, pardner, &error);
+                break;
+            }
+
+        }
+
+        PriorityQ_enqueue(ready_PCBs, newPCB, &error);
+    }
 }
 
-void generate_processes() {
-	int* error = 0;
+// Populates the passed I/O device's array of the passed PCB with random PC values.
+// Ensures that PC values are unique.
+void populateIOTrapArrays(PCB_p pcb, int ioDevice) {
+    unsigned long max = pcb->maxPC;
 
-	// Create 0-5 new processes.
-	int quantity = rand() % 5;
-	int i;
-	for (i = 0; i < quantity; i++) {
-		if (processes >= 30)
-			return;
+    unsigned long num0 = rand() % max;
+    unsigned long num1 = rand() % max;
+    unsigned long num2 = rand() % max;
+    unsigned long num3 = rand() % max;
 
-		PCB_p new_process = PCB_construct();
-		PCB_init(new_process, error);
-		new_process->pid = (unsigned long)rand(); //This needs to change. maybe.
-		new_process->state = new_;
-		processes++;
+    // Ensure num1 is unique.
+    while (num1 == num0) {
+        num1 = rand() % max;
+    }
 
-		FIFOq_enqueue(created_PCBs, new_process, error);
-	}
-}
+    // Ensure num2 is unique.
+    while (num2 == num0 || num2 == num1) {
+        num2 = rand() % max;
+    }
 
-void perform_ISR() {
-	current_pcb->state = interrupted;
-	current_pcb->pc = PC;
-	scheduler(timer_interrupt);
-	PC = SysStack;
-}
+    // Ensure num3 is unique.
+    while (num3 == num0 || num3 == num1 || num3 == num2) {
+        num3 = rand() % max;
+    }
 
-void scheduler(enum Interrupt interrupt) {
-	int* error = 0;
-
-	PCB_p dequeued;
-	while (created_PCBs->size != 0) { //can use the isEmpty method as well
-		dequeued = (PCB_p)FIFOq_dequeue(created_PCBs, error); //casting with abandon.
-		dequeued->state = running;
-		FIFOq_enqueue(ready_PCBs, dequeued, error);
-	}
-
-	PCB_p previous;
-	switch (interrupt) {
-	case timer_interrupt:
-		previous = current_pcb;
-
-		if (current_pcb != idle_pcb) //hmmm
-			FIFOq_enqueue(ready_PCBs, current_pcb, error);
-
-		current_pcb->state = ready;
-		dispatcher();
-
-		if (cswitch_no == 0)
-			cswitch_no = 4;
-		else
-			cswitch_no--;
-		break;
-	}
-
-	//Only destroy after all PCB's have been terminated and in the queue. Rewrite, yo!
-	while (terminated_PCBs->size != 0) {
-		PCB_p terminated = FIFOq_dequeue(terminated_PCBs, error);
-		PCB_destruct(terminated);
-	}
-
-	//This causes errors. I don't know why. Probably freeing without initialization. Just a guess.
-	//free(previous);
-	//free(dequeued);
-}
-
-void dispatcher() {
-	int* error = 0;
-
-	current_pcb->pc = PC;
-	if (ready_PCBs->size == 0)
-		current_pcb = idle_pcb;
-	else
-		current_pcb = FIFOq_dequeue(ready_PCBs, error);
-
-	current_pcb->state = running;
-	SysStack = current_pcb->pc;
+    // Set it to appropriate array in PCB.
+    // This is very poor practice, but it avoids memory leaks.
+    // If time permits we can convert the arrays to be instantiated here, and destroyed in PCB_destruct().
+    if (ioDevice == 1) {
+        pcb->io_1_traps[0] = num0;
+        pcb->io_1_traps[1] = num1;
+        pcb->io_1_traps[2] = num2;
+        pcb->io_1_traps[3] = num3;
+    }
+    else if (ioDevice == 2) {
+        pcb->io_2_traps[0] = num0;
+        pcb->io_2_traps[1] = num1;
+        pcb->io_2_traps[2] = num2;
+        pcb->io_2_traps[3] = num3;
+    }
 }

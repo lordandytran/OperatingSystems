@@ -14,7 +14,7 @@
 #define NODENULLERROR 4129
 
 //Ready Queue errors
-#define READYQNULL 7187
+#define PriorityQNULL 7187
 #define PCBNULL 7193
 
 //OS Loop errors

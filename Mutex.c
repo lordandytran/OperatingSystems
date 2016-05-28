@@ -5,20 +5,22 @@
 
 #include <stdlib.h>
 
-Mutex_p Mutex_constructor(unsigned long ident) {
+Mutex_p Mutex_constructor() {
+	static unsigned long id = 0;
 	Mutex_p mutex = (Mutex_p)malloc(sizeof(Mutex));
-	mutex->ID = ident;
-	mutex->pcbID = 0;
+	mutex->ID = id;
+	mutex->key = NULL;
 	mutex->locked = FALSE;
 	mutex->wait = FIFOq_construct();
+    id++;
 	return mutex;
 }
 
 //TRUE if Successful. FALSE if lock failed.
 int Mutex_lock(Mutex_p mut, PCB_p pcb) {
 	int* error = 0;
-	if (mut->pcbID == 0 || mut->pcbID == pcb->pid) {
-		mut->pcbID = pcb->pid;
+	if (mut->key == 0 || mut->key == pcb) {
+		mut->key = pcb;
 		mut->locked = TRUE;
 		return TRUE;
 	}
@@ -33,7 +35,7 @@ int Mutex_unlock(Mutex_p mut, PCB_p pcb) {
 	int* error = 0;
 	if (mut->locked == FALSE)
 		return TRUE;
-	if (pcb->pid == mut->pcbID) {
+	if (pcb == mut->key) {
 		mut->locked = FALSE;
 		return TRUE;
 	}
@@ -45,7 +47,7 @@ int Mutex_unlock(Mutex_p mut, PCB_p pcb) {
 int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
 	int* error = 0;
 	if (mut->locked == FALSE) {
-		mut->pcbID = pcb->pid;
+		mut->key = pcb;
 		mut->locked = TRUE;
 		return TRUE;
 	}
@@ -58,7 +60,7 @@ int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
 //Force unlocks and replaces controller with next in queue.
 void Mutex_next_Controller(Mutex_p mut) {
 	int* error = 0;
-	mut->pcbID = ((PCB_p)FIFOq_dequeue(mut->wait, error))->pid;
+	mut->key = (PCB_p)FIFOq_dequeue(mut->wait, error);
 	mut->locked = FALSE;
 }
 

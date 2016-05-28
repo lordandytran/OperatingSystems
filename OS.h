@@ -1,26 +1,17 @@
 #ifndef OS_H
 #define OS_H
 
-enum Interrupt { timer_interrupt, IO_interrupt, IO_completion };
+#include "PriorityQ.h"
 
-unsigned short cswitch_no;
-unsigned long PC;
-unsigned long SysStack;
-int processes;
 PCB_p current_pcb;
-PCB_p idle_pcb;
-FIFOq_p created_PCBs;
+
 FIFOq_p terminated_PCBs;
 FIFOq_p io1_PCBs;
 FIFOq_p io2_PCBs;
-READYq_p ready_PCBs;
+PriorityQ_p ready_PCBs;
 
-//prototypes
+// Prototypes
 void initialize();
-void os_loop();
-void generate_processes();
-void perform_ISR();
-void scheduler(enum Interrupt);
-void dispatcher();
+void populateIOTrapArrays(PCB_p pcb, int ioDevice);
 
 #endif

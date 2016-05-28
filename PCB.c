@@ -14,15 +14,24 @@ void PCB_destruct(PCB_p pcb) {
 }
 
 int PCB_init(PCB_p pcb, int* error) {
+	unsigned static long PIDCount = 0;
+
 	if (pcb == NULL) {
 		*error = PCBNULLERROR;
 		printf("PCB is NULL on PCB_init(PCB_p, int*) call. ERROR: %d\n", *error);
 		return FAILURE;
 	}
-	pcb->pid = 0;
-	pcb->state = halted;
-	pcb->priority = 0;
-	pcb->pc = 0;
+	pcb->pid = PIDCount;
+	pcb->state = new;
+    pcb->maxPC = (unsigned long) (rand() % MAX_PC_VAL); // Set a randomly assigned max PC.
+    pcb->pc = 0;
+    pcb->creation = time(NULL);
+    pcb->termination = -1; // Not terminated yet.
+    pcb->terminate = (unsigned int) ((rand() % MAX_TERMINATION_COUNT + 1)); // Set a randomly assigned termination count.
+    pcb->term_count = 0;
+    pcb->mutex_point = NULL;
+
+    PIDCount++;
 	return SUCCESS;
 }
 

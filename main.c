@@ -11,10 +11,7 @@
 
 
 int main() {
-
-	//seeeed
-	time_t t;
-	srand((unsigned)time(&t));
+	srand(time(0));
 
 	initialize();
 
