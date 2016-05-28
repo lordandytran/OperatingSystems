@@ -1,5 +1,6 @@
 #include "fifo_queue.h"
 #include "PCB.h"
+#include "CPU.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -24,20 +25,6 @@ PCB_p currentPCB;
 int ticksRemaining_Timer;   // CPU ticks before next timer interrupt.
 int ticksRemaining_IO1;   // CPU ticks before next I/O 1 interrupt.
 int ticksRemaining_IO2;   // CPU ticks before next I/O 2 interrupt.
-
-
-// Function prototypes
-void CPU_cycle();
-void executeCurrentProcess();
-void checkForInterrupt();
-void TSR(int);
-void scheduler();
-void ISR(int);
-void timerTick(int);
-int ioRequested(unsigned long* traps, unsigned long PC);
-void init();
-void populateWithRandomPCBs(FIFOq_p queue, int amount);
-void populateIOTrapArrays(PCB_p, int);
 
 
 int main(void) {
