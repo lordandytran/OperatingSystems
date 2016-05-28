@@ -5,11 +5,13 @@
 #define MAX_PRIORITY 30
 
 enum state_type { new_, ready, running, interrupted, waiting, halted };
+enum pcb_type { io, filler, producer, consumer, resource_user };
 
 typedef struct pcb {
 
 	unsigned long pid;
 	enum state_type state;
+	enum pcb_type type;
 	unsigned short priority;
 	unsigned long pc;
 
