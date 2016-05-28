@@ -12,6 +12,11 @@
 #define IO1 3
 #define IO2 4
 
+#define P0_PERCENT 5.0
+#define P1_PERCENT 80.0
+#define P2_PERCENT 10.0
+#define P3_PERCENT 5.0
+
 FIFOq_p readyPCBs;
 FIFOq_p waitIO1;
 FIFOq_p waitIO2;
@@ -268,11 +273,20 @@ void populateWithRandomPCBs(FIFOq_p queue, int amount) {
     // Note that PIDCount is static; it will be initialized to 0 only the first time that this function is called.
     unsigned static long PIDCount = 0; // The PID of the next PCB that will be created.
 
+    int p0_max = (int)((P0_PERCENT)/100.0 * amount)
+    int p1_max = (int)((P1_PERCENT)/100.0 * amount)
+    int p2_max = (int)((P2_PERCENT)/100.0 * amount)
+
     for (int i = 0; i < amount; i++) {
         PCB_p newPCB = PCB_construct();
         PCB_init(newPCB);   // TODO: Consider removal.
         newPCB->pid = ++PIDCount;
-        newPCB->priority = (unsigned short) (rand() % 15);
+
+        if(i < p0_max) newPCB->priority = 0;
+        if(i < p1_max) newPCB->priority = 1;
+        if(i < p2_max) newPCB->priority = 2;
+        else newPCB->priority = 3;
+
         newPCB->state = ready;
         newPCB->pc = 0;
         newPCB->sw = 0;
