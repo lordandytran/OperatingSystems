@@ -273,9 +273,9 @@ void populateWithRandomPCBs(FIFOq_p queue, int amount) {
     // Note that PIDCount is static; it will be initialized to 0 only the first time that this function is called.
     unsigned static long PIDCount = 0; // The PID of the next PCB that will be created.
 
-    int p0_max = (int)((P0_PERCENT)/100.0 * amount)
-    int p1_max = (int)((P1_PERCENT)/100.0 * amount)
-    int p2_max = (int)((P2_PERCENT)/100.0 * amount)
+    int p0_max = (int)((P0_PERCENT)/100.0 * amount);
+    int p1_max = (int)((P1_PERCENT)/100.0 * amount);
+    int p2_max = (int)((P2_PERCENT)/100.0 * amount);
 
     for (int i = 0; i < amount; i++) {
         PCB_p newPCB = PCB_construct();
