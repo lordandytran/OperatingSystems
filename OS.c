@@ -15,7 +15,9 @@ void initialize() {
 	processes = 0;
 
 	created_PCBs = FIFOq_construct();
-	ready_PCBs = FIFOq_construct();
+	io1_PCBs = FIFOq_construct();
+	io2_PCBs = FIFOq_construct();
+	ready_PCBs = READYq_construct();
 	terminated_PCBs = FIFOq_construct();
 
 	idle_pcb = PCB_construct();
@@ -54,7 +56,7 @@ void generate_processes() {
 		new_process->pid = (unsigned long)rand(); //This needs to change. maybe.
 		new_process->state = new_;
 		processes++;
-		
+
 		FIFOq_enqueue(created_PCBs, new_process, error);
 	}
 }
@@ -80,7 +82,7 @@ void scheduler(enum Interrupt interrupt) {
 	switch (interrupt) {
 	case timer_interrupt:
 		previous = current_pcb;
-		
+
 		if (current_pcb != idle_pcb) //hmmm
 			FIFOq_enqueue(ready_PCBs, current_pcb, error);
 

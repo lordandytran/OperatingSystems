@@ -5,8 +5,8 @@
 #include <stdlib.h>
 
 typedef struct readyq {
-	
-	FIFOq_p queue_array[16];
+
+	FIFOq_p queue_array[4];
 
 } READYq;
 typedef READYq * READYq_p;
