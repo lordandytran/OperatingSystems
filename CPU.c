@@ -1,5 +1,6 @@
 #include "fifo_queue.h"
 #include "PCB.h"
+#include "CPU.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
