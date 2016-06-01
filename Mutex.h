@@ -23,6 +23,7 @@ int Mutex_lock(Mutex_p, PCB_p);
 int Mutex_unlock(Mutex_p, PCB_p);
 int Mutex_trylock(Mutex_p, PCB_p);
 void Mutex_next_Controller(Mutex_p);
+int Mutex_next_Controller_s(Mutex_p, PCB_p);
 int Mutex_Is_Locked(Mutex_p);
 
 #endif
