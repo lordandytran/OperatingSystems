@@ -30,6 +30,9 @@ int PCB_init(PCB_p pcb, int* error) {
     pcb->terminate = (unsigned int) ((rand() % MAX_TERMINATION_COUNT + 1)); // Set a randomly assigned termination count.
     pcb->term_count = 0;
     pcb->mutex_point = NULL;
+	pcb->boost = 0;
+	pcb->quanta = 0;
+
 
     PIDCount++;
 	return SUCCESS;

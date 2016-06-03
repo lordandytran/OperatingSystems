@@ -10,8 +10,11 @@
 #define MAX_PC_VAL 5000
 #define MAX_TERMINATION_COUNT
 
+#define MAX_QUANTA_LEVEL 200
+
 enum state_type { new, ready, running, interrupted, waiting, terminated };
 enum pcb_type { io, filler, producer, consumer, resource_user };
+
 
 typedef struct pcb {
 
@@ -28,6 +31,8 @@ typedef struct pcb {
 	unsigned long io_1_traps[IO_TRAP_QUANTITY];
 	unsigned long io_2_traps[IO_TRAP_QUANTITY];
 	Mutex_p mutex_point;
+	int boost;
+	unsigned int quanta;
 
 
 } PCB;

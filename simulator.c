@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#define MAXLOOPS 100 //FRUITLOOPS
+#define MAXLOOPS 100000 //FROOTLOOPS
 
 
 int main() {
