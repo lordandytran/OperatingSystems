@@ -23,15 +23,15 @@ void OS_initialize() {
     // TODO: Revise
 	// Create a an initial set of processes.
     //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
-    createConsumerProducerProcessPairs(1, 1);
-    createConsumerProducerProcessPairs(1, 2);
-    createConsumerProducerProcessPairs(1, 3);
-    createResourceSharingProcesses(1, 2, 1);
-    createResourceSharingProcesses(1, 2, 2);
-    createResourceSharingProcesses(1, 2, 3);
+    //createConsumerProducerProcessPairs(1, 1);
+    //createConsumerProducerProcessPairs(1, 2);
+    //createConsumerProducerProcessPairs(1, 3);
+    //createResourceSharingProcesses(1, 2, 1);
+    //createResourceSharingProcesses(1, 2, 2);
+    //createResourceSharingProcesses(1, 2, 3);
     createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
     CPU_initialize();

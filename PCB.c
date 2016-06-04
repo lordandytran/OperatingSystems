@@ -12,7 +12,7 @@ void PCB_destruct(PCB_p pcb) {
 	free(pcb);
 }
 
-int PCB_init(PCB_p pcb, int* error/*, enum pcb_type type*/) {
+int PCB_init(PCB_p pcb, int* error) {
 	// (STATIC) Counter for the PID of the next process initialized.
 	unsigned static long PIDCount = 0;
 
@@ -24,7 +24,6 @@ int PCB_init(PCB_p pcb, int* error/*, enum pcb_type type*/) {
 
 	pcb->PID = PIDCount;
 	pcb->state = new;
-	//pcb->type = type;
     pcb->PC = 0;
     pcb->creation = time(NULL);
     pcb->termination = -1;      // Not terminated yet.
