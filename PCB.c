@@ -120,31 +120,31 @@ char* PCB_toStringDetailed(PCB_p pcb, int* error) {
             char *io1 = toStringIOArray(pcb, error, 1);
             char *io2 = toStringIOArray(pcb, error, 2);
 
-            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: %0x%X, Terminate: 0x%X, I/O 1: %s, I/O 2: %s",
-                    pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, io1, io2);
+            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X, I/O 1: %s, I/O 2: %s",
+                    pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate, io1, io2);
 
             free(io1);
             free(io2);
             break;
         }
         case compute:
-            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: %0x%X, Terminate: 0x%X",
+            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X",
                     pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate);
             break;
         case producer:
-            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: %0x%X, Terminate: 0x%X, Pair ID: 0x%X",
+            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X, Pair ID: 0x%X",
                     pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate, pcb->pair_id);
             break;
         case consumer:
-            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: %0x%X, Terminate: 0x%X, Pair ID: 0x%X",
+            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X, Pair ID: 0x%X",
                     pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate, pcb->pair_id);
             break;
         case resource_user: {
             char *lock = toStringLockUnlockArray(pcb, error, 1);
             char *unlock = toStringLockUnlockArray(pcb, error, 2);
 
-            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: %0x%X, Terminate: 0x%X, I/O 1: %s, I/O 2: %s",
-                    pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, lock, unlock);
+            sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X, I/O 1: %s, I/O 2: %s",
+                    pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate, lock, unlock);
 
             free(lock);
             free(unlock);

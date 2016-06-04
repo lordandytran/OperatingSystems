@@ -241,7 +241,7 @@ void createIOProcesses(int quantity, unsigned short priority) {
 
         FIFOq_enqueue(new_PCBs, newPCB, &error);
 
-        char* stringPCB = PCB_toString(newPCB, &error);
+        char* stringPCB = PCB_toStringDetailed(newPCB, &error);
         printf("New IO process created: %s\n", stringPCB);
         free(stringPCB);
     }
@@ -260,7 +260,7 @@ void createComputeProcesses(int quantity, unsigned short priority) {
 
         FIFOq_enqueue(new_PCBs, newPCB, &error);
 
-        char* stringPCB = PCB_toString(newPCB, &error);
+        char* stringPCB = PCB_toStringDetailed(newPCB, &error);
         printf("New compute process created: %s\n", stringPCB);
         free(stringPCB);
     }
@@ -294,8 +294,8 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
         currentPair++;
 
-        char* stringConsumerPCB = PCB_toString(consumerPCB, &error);
-        char* stringProducerPCB = PCB_toString(producerPCB, &error);
+        char* stringConsumerPCB = PCB_toStringDetailed(consumerPCB, &error);
+        char* stringProducerPCB = PCB_toStringDetailed(producerPCB, &error);
         printf("New consumer/producer process pair created: %s | %s\n", stringProducerPCB, stringConsumerPCB);
         free(stringConsumerPCB);
         free(stringProducerPCB);
@@ -317,7 +317,7 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 
             FIFOq_enqueue(new_PCBs, newPCB, &error);
 
-            char* stringPCB = PCB_toString(newPCB, &error);
+            char* stringPCB = PCB_toStringDetailed(newPCB, &error);
             printf("New resource-using process created: %s\n", stringPCB);
             free(stringPCB);
         }
