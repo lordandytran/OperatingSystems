@@ -8,11 +8,12 @@ int ticksRemaining_IO1;   // CPU ticks before next I/O 1 interrupt.
 int ticksRemaining_IO2;   // CPU ticks before next I/O 2 interrupt.
 
 Interrupt CPU_run() {
-    Interrupt interrupt = -1;
-    while (interrupt == -1) {
-        TSR trap = executeCurrentProcess();
+    Interrupt interrupt = no_interrupt;
+    trap = no_trap;
+    while (interrupt == no_interrupt) {
+        trap = executeCurrentProcess();
         // If a trap has been requested, interrupt the running of this process.
-        if(trap != NULL) {
+        if(trap != no_trap) {
             return trap_interrupt;
         }
 
@@ -36,7 +37,6 @@ TSR executeCurrentProcess() {
 
         // Check if the process is to be terminated.
         if (current_pcb->term_count == current_pcb->terminate) {
-            execute_TSR(terminate_trap);
             return terminate_trap; // No more execution needed.
         }
     }
@@ -44,15 +44,13 @@ TSR executeCurrentProcess() {
     // If it's an I/O process, check if the process is to execute an I/O trap during this cycle.
     if (current_pcb->type == io) {
         if (ioRequested(current_pcb->io_1_traps, current_pcb->PC)) {
-            execute_TSR(io1_trap);
             return io1_trap;
         } else if (ioRequested(current_pcb->io_2_traps, current_pcb->PC)) {
-            execute_TSR(io2_trap);
             return io2_trap;
         }
     }
 
-    return NULL;
+    return no_trap;
 }
 
 int ioRequested(unsigned long* traps, unsigned long PC) {
@@ -66,20 +64,29 @@ int ioRequested(unsigned long* traps, unsigned long PC) {
 
 
 Interrupt checkForInterrupt() {
+    int error;
+
     if (ticksRemaining_Timer == 1) {
         return timer_interrupt;
+    } else {
+        ticksRemaining_Timer--;
     }
-    timerTick(timer_device);
 
     if (ticksRemaining_IO1 == 1) {
+        ticksRemaining_IO1 = TIMER_QUANTUM * ((3 % rand()) + 2);
         return io1_interrupt;
+    } else if (!FIFOq_isEmpty(io1_PCBs, &error)) {
+        ticksRemaining_IO1--;
     }
-    timerTick(io1_device);
 
     if (ticksRemaining_IO2 == 1) {
+        ticksRemaining_IO2 = TIMER_QUANTUM * ((3 % rand()) + 2);
         return io2_interrupt;
+    } else if (!FIFOq_isEmpty(io2_PCBs, &error)) {
+        ticksRemaining_IO2--;
     }
-    timerTick(io2_device);
+
+    return no_interrupt;
 }
 
 // TODO: Revise timer/io quantum resets.
@@ -99,18 +106,18 @@ void timerTick(Device device) {
         case io1_device:
             if (FIFOq_isEmpty(io1_PCBs, &error)) {
                 ticksRemaining_IO1 = 0;
-            } else if(ticksRemaining_IO1 <= 0) {
+            } else if(ticksRemaining_IO1 == 1) {
                 ticksRemaining_IO1 = TIMER_QUANTUM * ((3 % rand()) + 2);
-            } else{
+            } else if (ticksRemaining_IO1 > 1){
                 ticksRemaining_IO1--;
             }
             break;
         case io2_device:
             if (FIFOq_isEmpty(io2_PCBs, &error)) {
                 ticksRemaining_IO2 = 0;
-            } else if(ticksRemaining_IO2 <= 0) {
+            } else if(ticksRemaining_IO2 == 1) {
                 ticksRemaining_IO2 = TIMER_QUANTUM * ((3 % rand()) + 2);
-            } else {
+            } else if(ticksRemaining_IO2 > 1){
                 ticksRemaining_IO2--;
             }
             break;
@@ -122,6 +129,6 @@ void timerTick(Device device) {
 void CPU_initialize() {
     // Setup timers and counters.
     ticksRemaining_Timer = 1;
-    ticksRemaining_IO1 = 0;   // I/O 1 wait queue initially empty.
-    ticksRemaining_IO2 = 0;   // I/O 2 wait queue initially empty.
+    ticksRemaining_IO1 = TIMER_QUANTUM * ((3 % rand()) + 2);
+    ticksRemaining_IO2 = TIMER_QUANTUM * ((3 % rand()) + 2);
 }

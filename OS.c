@@ -3,15 +3,6 @@
 void OS_initialize() {
     int error;
 
-    // Create the idle process and assign it as the first process.
-    idle_pcb = PCB_construct();
-    PCB_init(idle_pcb, &error);
-    idle_pcb->priority = 4;
-    idle_pcb->type = idle;
-    idle_pcb->maxPC = MAX_PC;
-    idle_pcb->terminate = 0;
-    current_pcb = idle_pcb;
-
     // Initialize all of the queues.
     new_PCBs = FIFOq_construct();
     io1_PCBs = FIFOq_construct();
@@ -19,6 +10,16 @@ void OS_initialize() {
     ready_PCBs = PriorityQ_construct();
     PriorityQ_init(ready_PCBs, &error);
     terminated_PCBs = FIFOq_construct();
+
+    // Create the idle process and assign it as the first process by running the dispatcher.
+    idle_pcb = PCB_construct();
+    PCB_init(idle_pcb, &error);
+    idle_pcb->PID = (unsigned long) -1;     // Make the idle PID the maximum value of type unsigned long.
+    idle_pcb->priority = 4;
+    idle_pcb->type = idle;
+    idle_pcb->maxPC = MAX_PC;
+    idle_pcb->terminate = 0;
+    runDispatcher();
 
     // TODO: Revise
 	// Create a an initial set of processes.
@@ -34,7 +35,7 @@ void OS_initialize() {
     createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
-    CPU_initialize();   // Sets up the CPU so that a timer interrupt occurs immediately to allow scheduler to run.
+    CPU_initialize();
 }
 
 void OS_loop() {
@@ -67,7 +68,7 @@ void execute_ISR(Interrupt interrupt) {
         case io1_interrupt: {
             current_pcb->state = interrupted;
 
-            printf("I/O 1 Trap request complete.");
+            printf("I/O 1 Trap request complete.\n");
             runScheduler(io1_interrupt);
 
             current_pcb->state = running;
@@ -76,17 +77,26 @@ void execute_ISR(Interrupt interrupt) {
         case io2_interrupt: {
             current_pcb->state = interrupted;
 
-            printf("I/O 2 Trap request complete.");
+            printf("I/O 2 Trap request complete.\n");
             runScheduler(io2_interrupt);
 
             current_pcb->state = running;
             break;
         }
         case trap_interrupt: {
+            current_pcb->state = interrupted;
+
             char* PCB_string = PCB_toString(current_pcb, &error);
-            printf("Trap interrupt during %s\n", PCB_string);
+            printf("Trap requested by %s\n", PCB_string);
+
+            execute_TSR(trap);
             runScheduler(trap_interrupt);
+
+            break;
         }
+        case no_interrupt:
+            // This shouldn't happen here.
+            break;
     }
 }
 
@@ -125,6 +135,7 @@ void runScheduler(Interrupt interrupt) {
             char* PCB_string = PCB_toString(completedIOPCB, &error);
             printf("Returned to ready queue: %s\n", PCB_string);
             free(PCB_string);
+            break;
         }
         case io2_interrupt: {
             PCB_p completedIOPCB = FIFOq_dequeue(io2_PCBs, &error);
@@ -134,11 +145,15 @@ void runScheduler(Interrupt interrupt) {
             char* PCB_string = PCB_toString(completedIOPCB, &error);
             printf("Returned to ready queue: %s\n", PCB_string);
             free(PCB_string);
+            break;
         }
         case trap_interrupt:
-            // TODO: Revise
-            // The current PCB has been placed in it's appropriate queue, so just run the dispatcher to start the next process.
+            // The current PCB has been placed in it's appropriate queue by the TSR,
+            // so just run the dispatcher to dispatch the next process in line.
             runDispatcher();
+            break;
+        case no_interrupt:
+            // This shouldn't happen here.
             break;
     }
 
@@ -161,11 +176,13 @@ void runDispatcher() {
     } else {
         current_pcb = PriorityQ_dequeue(ready_PCBs, &error);
     }
-    CPU_setTimer(TIMER_QUANTUM);    // Not sure if the dispatcher should do this.
+    CPU_setTimer(TIMER_QUANTUM);
 
     char* string = PCB_toString(current_pcb, &error);
     printf("Switching to: %s\n", string);
     free(string);
+
+    current_pcb->state = running;
 }
 
 void execute_TSR(TSR routine) {
@@ -196,12 +213,15 @@ void execute_TSR(TSR routine) {
             FIFOq_enqueue(terminated_PCBs, current_pcb, &error);
 
             char* PCB_string = PCB_toString(current_pcb, &error);
-            printf("Terminating: %s\n", PCB_string);
+            printf("Terminated process: %s\n", PCB_string);
             free(PCB_string);
 
             current_pcb = NULL;
             break;
         }
+        case no_trap:
+            // This shouldn't happen here.
+            break;
     }
 }
 
@@ -248,6 +268,7 @@ void createComputeProcesses(int quantity, unsigned short priority) {
 
 // TODO: Add mutex stuff
 void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
+    static unsigned int currentPair = 0;
     int error;
 
     for (int i = 0; i < quantity; i++) {
@@ -258,6 +279,7 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         consumerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
         consumerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
         populateMutexPCArrays(consumerPCB);
+        consumerPCB->pair_id = currentPair;
 
         PCB_p producerPCB = PCB_construct();
         PCB_init(producerPCB, &error);
@@ -266,16 +288,17 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         producerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
         producerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
         populateMutexPCArrays(producerPCB);
+        producerPCB->pair_id = currentPair;
 
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
+        currentPair++;
 
         char* stringConsumerPCB = PCB_toString(consumerPCB, &error);
         char* stringProducerPCB = PCB_toString(producerPCB, &error);
         printf("New consumer/producer process pair created: %s | %s\n", stringProducerPCB, stringConsumerPCB);
         free(stringConsumerPCB);
         free(stringProducerPCB);
-
     }
 }
 
@@ -302,14 +325,14 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 }
 
 void populateMutexPCArrays(PCB_p pcb) {
-    memcpy(pcb->trylock, (int[MUTEX_PC_QUANTITY]) {10, 30, 50, 70},
-            MUTEX_PC_QUANTITY * sizeof(int));
+    int lockPCs[MUTEX_PC_QUANTITY] = {10, 30, 50, 70};
+    memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(int));
 
-    memcpy(pcb->lock, (int[MUTEX_PC_QUANTITY]) {15, 35, 55, 75},
-            MUTEX_PC_QUANTITY * sizeof(int));
+    /*memcpy(pcb->lock, (int[MUTEX_PC_QUANTITY]) {15, 35, 55, 75},
+            MUTEX_PC_QUANTITY * sizeof(int));*/
 
-    memcpy(pcb->unlock, (int[MUTEX_PC_QUANTITY]) {20, 40, 60, 80},
-            MUTEX_PC_QUANTITY * sizeof(int));
+    int unlockPCs[MUTEX_PC_QUANTITY] = {20, 40, 60, 80};
+    memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(int));
 }
 
 // Populates the passed I/O device's array of the passed PCB with random PC values.

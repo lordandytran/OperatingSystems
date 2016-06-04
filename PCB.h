@@ -7,8 +7,6 @@
 #define MUTEX_PC_QUANTITY 4
 #define MAX_PC_VAL 5000
 
-unsigned int last_pair_id;
-
 enum state_type { new, ready, running, interrupted, waiting, terminated };
 enum pcb_type { io, compute, producer, consumer, resource_user, idle };
 
@@ -40,5 +38,8 @@ int PCB_init(PCB_p, int*);
 char* PCB_state(PCB_p, int*);
 char* PCB_type(PCB_p pcb, int* error);
 char* PCB_toString(PCB_p, int*);
+char* PCB_toStringDetailed(PCB_p pcb, int* error);
+char* toStringIOArray(PCB_p pcb, int* error, int ioNum);
+char* toStringLockUnlockArray(PCB_p pcb, int* error, int selection);
 
 #endif

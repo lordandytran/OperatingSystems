@@ -2,6 +2,7 @@
 #define OS_H
 
 #include <stdio.h>
+#include <memory.h>
 
 #include "FIFOq.h"
 #include "PriorityQ.h"
@@ -12,14 +13,15 @@
 #define MAX_TERMINATE 15
 #define TIMER_QUANTUM 500
 
-typedef enum tsr_type {io1_trap, io2_trap, terminate_trap} TSR;
-typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt} Interrupt;
+typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap} TSR;
+typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt, no_interrupt} Interrupt;
 typedef enum device_type {timer_device, io1_device, io2_device} Device;
 
 #include "CPU.h"
 
 PCB_p current_pcb;
 PCB_p idle_pcb;
+TSR trap;
 
 FIFOq_p new_PCBs;
 PriorityQ_p ready_PCBs;
@@ -31,6 +33,7 @@ FIFOq_p terminated_PCBs;
 void OS_initialize();
 void OS_loop();
 void createIOProcesses(int quantity, unsigned short priority);
+void populateMutexPCArrays(PCB_p pcb);
 void populateIOTrapArrays(PCB_p pcb, int ioDevice);
 void createComputeProcesses(int quantity, unsigned short priority);
 void createConsumerProducerProcessPairs(int quantity, unsigned short priority);
