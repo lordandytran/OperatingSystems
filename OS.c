@@ -1,18 +1,28 @@
 #include "OS.h"
-#include "Mutex.h"
-#include<stdio.h>
 
 void OS_initialize() {
+    int error;
+
+    // Create the idle process and assign it as the first process.
+    idle_pcb = PCB_construct();
+    PCB_init(idle_pcb, &error);
+    idle_pcb->priority = LOWEST_PRIORITY + 1;
+    idle_pcb->type = idle;
+    idle_pcb->maxPC = MAX_PC;
+    idle_pcb->terminate = 0;
+    current_pcb = idle_pcb;
+
     // Initialize all of the queues.
     new_PCBs = FIFOq_construct();
     io1_PCBs = FIFOq_construct();
     io2_PCBs = FIFOq_construct();
     ready_PCBs = PriorityQ_construct();
+    PriorityQ_init(ready_PCBs, &error);
     terminated_PCBs = FIFOq_construct();
 
     // TODO: Revise
 	// Create a an initial set of processes.
-    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
     createConsumerProducerProcessPairs(1, 1);
     createConsumerProducerProcessPairs(1, 2);
     createConsumerProducerProcessPairs(1, 3);
@@ -22,6 +32,92 @@ void OS_initialize() {
     createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
     createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
     createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+
+    // Initialize the system.
+    CPU_initialize();   // Sets up the CPU so that a timer interrupt occurs immediately to allow scheduler to run.
+}
+
+void OS_loop() {
+    // TODO: Generate new processes.
+    int error;
+
+    // Run the current process until the next interrupt or trap call.
+    char* string = PCB_toString(current_pcb, &error);
+    printf("Now Running: %s\n", string);
+    free(string);
+    Interrupt interrupt = CPU_run();
+
+    execute_ISR(interrupt);
+}
+
+void execute_ISR(Interrupt interrupt) {
+    int error;
+
+    switch (interrupt) {
+        case timer_interrupt:
+            current_pcb->state = interrupted;
+
+            char* PCB_string = PCB_toString(current_pcb, &error);
+            printf("Timer interrupt during %s\n", PCB_string);
+            free(PCB_string);
+
+            runScheduler(timer_interrupt);
+            break;
+    }
+}
+
+void runScheduler(Interrupt interrupt) {
+    int error;
+
+    // Add any newly created PCBs to the ready queue.
+    while (!FIFOq_isEmpty(new_PCBs, &error)) {
+        PCB_p newPCB = FIFOq_dequeue(new_PCBs, &error);
+        newPCB->state = ready;
+        PriorityQ_enqueue(ready_PCBs, newPCB, &error);
+        char* string = PCB_toString(newPCB, &error);
+        printf("Added to ready queue: %s\n", string);
+        free(string);
+    }
+
+    switch (interrupt) {
+        case timer_interrupt:
+            current_pcb->state = ready;
+
+            // Put the interrupted process into the ready queue (if it's not the idle process).
+            if (current_pcb != idle_pcb) {
+                PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
+                char* string = PCB_toString(current_pcb, &error);
+                printf("Returned to ready queue: %s\n", string);
+                free(string);
+            }
+
+            runDispatcher();
+            break;
+    }
+
+    // Housekeeping work.
+    // Free all terminated PCBs.
+    while (!FIFOq_isEmpty(terminated_PCBs, &error)) {
+        PCB_p terminatedPCB = FIFOq_dequeue(terminated_PCBs, &error);
+        char* string = PCB_toString(terminatedPCB, &error);
+        printf("Freeing terminated PCB: %s\n", string);
+        free(string);
+        PCB_destruct(terminatedPCB);
+    }
+}
+
+void runDispatcher() {
+    int error;
+
+    if(PriorityQ_isEmpty(ready_PCBs, &error)) {
+        current_pcb = idle_pcb;
+    } else {
+        current_pcb = PriorityQ_dequeue(ready_PCBs, &error);
+    }
+
+    char* string = PCB_toString(current_pcb, &error);
+    printf("Switching to: %s\n", string);
+    free(string);
 }
 
 void createIOProcesses(int quantity, unsigned short priority) {

@@ -7,7 +7,7 @@
 #define MAX_PC_VAL 5000
 
 enum state_type { new, ready, running, interrupted, waiting, terminated };
-enum pcb_type { io, compute, producer, consumer, resource_user };
+enum pcb_type { io, compute, producer, consumer, resource_user, idle };
 
 typedef struct pcb {
 	unsigned long PID;

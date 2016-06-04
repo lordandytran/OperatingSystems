@@ -74,6 +74,8 @@ char* PCB_type(PCB_p pcb, int* error) {
             return "consumer";
         case resource_user:
             return "resource-user";
+        case idle:
+            return "idle";
     }
 }
 
