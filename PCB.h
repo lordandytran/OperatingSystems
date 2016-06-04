@@ -4,7 +4,10 @@
 #include <time.h>
 
 #define IO_TRAP_QUANTITY 4
+#define MUTEX_PC_QUANTITY 4
 #define MAX_PC_VAL 5000
+
+unsigned int last_pair_id;
 
 enum state_type { new, ready, running, interrupted, waiting, terminated };
 enum pcb_type { io, compute, producer, consumer, resource_user, idle };
@@ -22,6 +25,11 @@ typedef struct pcb {
 	unsigned int term_count;
 	unsigned long io_1_traps[IO_TRAP_QUANTITY];     // Note: Uninitialized
 	unsigned long io_2_traps[IO_TRAP_QUANTITY];     // Note: Uninitialized
+
+	unsigned int pair_id; // Producer/consumer pair ID
+
+	unsigned int lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
+	unsigned int unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
 } PCB;
 typedef PCB * PCB_p;
 

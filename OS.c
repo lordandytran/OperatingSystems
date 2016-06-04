@@ -172,6 +172,7 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         consumerPCB->type = consumer;
         consumerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
         consumerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+        populateMutexPCArrays(consumerPCB);
 
         PCB_p producerPCB = PCB_construct();
         PCB_init(producerPCB, &error);
@@ -179,6 +180,7 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         producerPCB->type = producer;
         producerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
         producerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+        populateMutexPCArrays(producerPCB);
 
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
@@ -203,6 +205,7 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
             newPCB->type = resource_user;
             newPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
             newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+            populateMutexPCArrays(newPCB);
 
             FIFOq_enqueue(new_PCBs, newPCB, &error);
 
@@ -211,6 +214,17 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
             free(stringPCB);
         }
     }
+}
+
+void populateMutexPCArrays(PCB_p pcb) {
+    memcpy(pcb->trylock, (int[MUTEX_PC_QUANTITY]) {10, 30, 50, 70},
+            MUTEX_PC_QUANTITY * sizeof(int));
+
+    memcpy(pcb->lock, (int[MUTEX_PC_QUANTITY]) {15, 35, 55, 75},
+            MUTEX_PC_QUANTITY * sizeof(int));
+
+    memcpy(pcb->unlock, (int[MUTEX_PC_QUANTITY]) {20, 40, 60, 80},
+            MUTEX_PC_QUANTITY * sizeof(int));
 }
 
 // Populates the passed I/O device's array of the passed PCB with random PC values.
