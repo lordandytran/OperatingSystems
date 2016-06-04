@@ -1,8 +1,8 @@
 #ifndef Mutex_H
 #define Mutex_H
 
-#include "FIFOq.h"
 #include "PCB.h"
+#include "FIFOq.h"
 
 #define TRUE 1
 #define FALSE 0

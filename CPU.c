@@ -1,4 +1,4 @@
-#include "FIFOq.h"
+#include "fifo_queue.h"
 #include "PCB.h"
 #include "CPU.h"
 #include <stdio.h>
@@ -12,6 +12,18 @@
 #define IO1 3
 #define IO2 4
 
+#define P0_PERCENT 5.0
+#define P1_PERCENT 80.0
+#define P2_PERCENT 10.0
+#define P3_PERCENT 5.0
+
+FIFOq_p readyPCBs;
+FIFOq_p waitIO1;
+FIFOq_p waitIO2;
+FIFOq_p terminatedPCBs;
+
+PCB_p currentPCB;
+
 // Timers for each device.
 // When the timer is at 1, the device throws an interrupt.
 // When the timer is at 0, the device's timer is to its respective quantum.
@@ -19,18 +31,30 @@ int ticksRemaining_Timer;   // CPU ticks before next timer interrupt.
 int ticksRemaining_IO1;   // CPU ticks before next I/O 1 interrupt.
 int ticksRemaining_IO2;   // CPU ticks before next I/O 2 interrupt.
 
-Interrupt CPU_run() {
-    return timer_interrupt;
+
+int main(void) {
+    init();
+
+    char* string = FIFOq_toString(readyPCBs);
+    printf("%s\n", string);
+    free(string);
+
+    // Run simulation until all processes have been terminated.
+    while (!FIFOq_is_empty(readyPCBs)) {
+        CPU_cycle();
+    }
+
+    return 0;
+}
+
+
+void CPU_cycle() {
     executeCurrentProcess();
     checkForInterrupt();
 }
 
-void CPU_setTimer(int timerAmount) {
-    ticksRemaining_Timer = timerAmount;
-}
-
 // Performs the following tasks relating to the execution of a process that occur during a single CPU cycle.
-/*void executeCurrentProcess() {
+void executeCurrentProcess() {
     currentPCB->pc++;
 
     // If current PC exceeds max PC of the process, reset it, and check if process is to be terminated.
@@ -40,29 +64,28 @@ void CPU_setTimer(int timerAmount) {
 
         // Check if the process is to be terminated.
         if (currentPCB->term_count == currentPCB->terminate) {
-            //TSR(TERMINATE);
+            TSR(TERMINATE);
             return; // No more execution needed.
         }
     }
 
     // Check if the process is to execute an I/O trap during this cycle.
     if(ioRequested(currentPCB->io_1_traps, currentPCB->pc)) {
-        //TSR(IO1);
+        TSR(IO1);
     } else if(ioRequested(currentPCB->io_2_traps, currentPCB->pc)) {
-        //TSR(IO2);
+        TSR(IO2);
     }
-}*/
+}
 
-/*int ioRequested(unsigned long* traps, unsigned long PC) {
+int ioRequested(unsigned long* traps, unsigned long PC) {
     for (int i = 0; i < IO_TRAPS; i++) {
         if(traps[i] == PC) {
             return 1;
         }
     }
     return 0;
-}*/
+}
 
-/*
 void checkForInterrupt() {
     // Check for timer interrupt, call timer ISR if timer interrupt has occurred.
     if (ticksRemaining_Timer == 1) {
@@ -84,9 +107,9 @@ void checkForInterrupt() {
         ISR(IO2);
     }
     timerTick(IO2);
-}*/
+}
 
-/*void TSR(int trap) {
+void TSR(int trap) {
     char* PCB_string;
     switch (trap) {
         case TIMER:
@@ -129,7 +152,26 @@ void checkForInterrupt() {
     }
 
     scheduler();
-}*/
+}
+
+void scheduler() {
+    currentPCB = FIFOq_dequeue(readyPCBs);
+    currentPCB->state = running;
+    char* PCB_string = PCB_toString(currentPCB);
+    printf("Switching to %s\n", PCB_string);
+    free(PCB_string);
+
+    // Remove all terminated processes.
+    while(!FIFOq_is_empty(terminatedPCBs)) {
+        PCB_p terminatedPCB = FIFOq_dequeue(terminatedPCBs);
+
+        PCB_string = PCB_toString(terminatedPCB);
+        printf("Resources freed from %s\n", PCB_string);
+        free(PCB_string);
+
+        PCB_destruct(terminatedPCB);
+    }
+}
 
 void ISR(int interrupt) {
     PCB_p completedIOPCB;
@@ -137,9 +179,9 @@ void ISR(int interrupt) {
 
     switch (interrupt) {
         case TIMER:
-            //TSR(TIMER);
+            TSR(TIMER);
             break;
-        /*case IO1:
+        case IO1:
             printf("%d: %d\n", 1, FIFOq_size(waitIO1));
             completedIOPCB = FIFOq_dequeue(waitIO1);
             completedIOPCB->state = ready;
@@ -158,7 +200,7 @@ void ISR(int interrupt) {
             PCB_string = PCB_toString(completedIOPCB);
             printf("I/O 2 Trap requested completed by %s\n", PCB_string);
             free(PCB_string);
-            break;*/
+            break;
         default:
             return; // If an unknown device threw an interrupt, don't do anything.
     }
@@ -166,7 +208,7 @@ void ISR(int interrupt) {
 }
 
 
-/*void timerTick(int device) {
+void timerTick(int device) {
     switch (device) {
         case TIMER:
             if (FIFOq_is_empty(readyPCBs)) {
@@ -198,11 +240,64 @@ void ISR(int interrupt) {
         default:
             return; // If an unknown device is to be ticked down, don't do anything.
     }
-}*/
+}
 
-void CPU_initialize() {
+void init() {
+    // Setup system functions.
+    srand((unsigned int) time(NULL));
+
     // Setup timers and counters.
     ticksRemaining_Timer = QUANTUM;
     ticksRemaining_IO1 = 0;   // I/O 1 wait queue initially empty.
     ticksRemaining_IO2 = 0;   // I/O 2 wait queue initially empty.
+
+    // Create and populate queue of ready PCBs.
+    readyPCBs = FIFOq_construct();
+    FIFOq_init(readyPCBs);
+    populateWithRandomPCBs(readyPCBs, PCB_INIT_CNT);
+
+    // Create queues for both the I/O devices and the termination queue.
+    waitIO1 = FIFOq_construct();
+    FIFOq_init(waitIO1);
+    waitIO2 = FIFOq_construct();
+    FIFOq_init(waitIO2);
+    terminatedPCBs = FIFOq_construct();
+    FIFOq_init(terminatedPCBs);
+
+    // The first PCB to be run is the first ready PCB.
+    currentPCB = FIFOq_dequeue(readyPCBs);
+}
+
+// Populates the passed queue with the passed amount of randomly generated PCBs.
+void populateWithRandomPCBs(FIFOq_p queue, int amount) {
+    // Note that PIDCount is static; it will be initialized to 0 only the first time that this function is called.
+    unsigned static long PIDCount = 0; // The PID of the next PCB that will be created.
+
+    int p0_max = (int)((P0_PERCENT)/100.0 * amount);
+    int p1_max = (int)((P1_PERCENT)/100.0 * amount);
+    int p2_max = (int)((P2_PERCENT)/100.0 * amount);
+
+    for (int i = 0; i < amount; i++) {
+        PCB_p newPCB = PCB_construct();
+        PCB_init(newPCB);   // TODO: Consider removal.
+        newPCB->pid = ++PIDCount;
+
+        if(i < p0_max) newPCB->priority = 0;
+        if(i < p1_max) newPCB->priority = 1;
+        if(i < p2_max) newPCB->priority = 2;
+        else newPCB->priority = 3;
+
+        newPCB->state = ready;
+        newPCB->pc = 0;
+        newPCB->sw = 0;
+        newPCB->max_pc = (unsigned long) (rand() % MAX_PC_VAL); // Set a randomly assigned max PC.
+        newPCB->creation = time(NULL);
+        newPCB->termination = -1;   // Not terminated yet.
+        newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATION_COUNT); // Set a randomly assigned termination count.
+        newPCB->term_count = 0;
+        populateIOTrapArrays(newPCB, 1);
+        populateIOTrapArrays(newPCB, 2);
+
+        FIFOq_enqueue(queue, newPCB);
+    }
 }

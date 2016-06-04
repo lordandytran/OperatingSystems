@@ -1,14 +1,24 @@
+#include "errors.h"
+#include "PCB.h"
+#include "FIFOq.h"
 #include "OS.h"
 
-#define MAXLOOPS 200     // Number of CPU cycles to simulate.
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
+#define MAXLOOPS 100000 //FROOTLOOPS
+
 
 int main() {
-	srand((unsigned int) (time(0)));
-	OS_initialize();
+	srand(time(0));
 
-    for (int i = 0; i < MAXLOOPS; i++) {
-        OS_loop();
-    }
+	initialize();
+
+	int i;
+	for (i = 0; i < MAXLOOPS; i++) {
+		os_loop();
+	}
 
 	return 0;
 }
