@@ -1,87 +1,119 @@
 #include "OS.h"
 #include "Mutex.h"
+#include<stdio.h>
 
-#define MAX_PROCESSES 20
-#define QUANTUM_OF_SOLACE 400
-
-void initialize() {
+void OS_initialize() {
     // Initialize all of the queues.
+    new_PCBs = FIFOq_construct();
     io1_PCBs = FIFOq_construct();
     io2_PCBs = FIFOq_construct();
     ready_PCBs = PriorityQ_construct();
     terminated_PCBs = FIFOq_construct();
 
-	generatePCBS(0, filler, MAX_PROCESSES * 0.05);
-
-	//Producer auto generates a consumer partner (pair)
-	generatePCBS(1, producer, 1);
-	generatePCBS(1, resource_user, 1);
-
-	//Producer auto generates a consumer partner (pair)
-	generatePCBS(2, producer, 1);
-	generatePCBS(2, resource_user, 1);
-
-	//Producer auto generates a consumer partner (pair)
-	generatePCBS(3, producer, 1);
-	generatePCBS(3, resource_user, 1);
-
-	//Populates remaining processes with IO
-	fillIO();
-	
+    // TODO: Revise
+	// Create a an initial set of processes.
+    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    createConsumerProducerProcessPairs(1, 1);
+    createConsumerProducerProcessPairs(1, 2);
+    createConsumerProducerProcessPairs(1, 3);
+    createResourceSharingProcesses(1, 2, 1);
+    createResourceSharingProcesses(1, 2, 2);
+    createResourceSharingProcesses(1, 2, 3);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 }
 
-void fillIO() {
-	generatePCBS(1, io, (MAX_PROCESSES * 0.80) - ready_PCBs->queue_array[1]->size);
-	generatePCBS(2, io, (MAX_PROCESSES * 0.10) - ready_PCBs->queue_array[2]->size);
-	generatePCBS(3, io, (MAX_PROCESSES * 0.05) - ready_PCBs->queue_array[3]->size);
-}
-
-void generatePCBs(unsigned short priority, enum pcb_type type, int amount) {
+void createIOProcesses(int quantity, unsigned short priority) {
     int error;
-    for(int i = 0; i < amount; i++) {
+
+    for (int i = 0; i < quantity; i++) {
         PCB_p newPCB = PCB_construct();
         PCB_init(newPCB, &error);
-        newPCB->type = type;
         newPCB->priority = priority;
-        newPCB->state = ready;
+        newPCB->type = io;
+        newPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
 
-        Mutex_p producer_Mutex;
+        populateIOTrapArrays(newPCB, 1);
+        populateIOTrapArrays(newPCB, 2);
 
-        switch (type) {
-            case filler:
-                break;
-            case io:
-                populateIOTrapArrays(newPCB, 1);
-                populateIOTrapArrays(newPCB, 2);
-                break;
-            case resource_user: {
-                PCB_p pardner = PCB_construct();
-                PCB_init(pardner, &error);
-                pardner->type = resource_user;
-                pardner->priority = priority;
-                pardner->state = ready;
-                producer_Mutex = Mutex_constructor();
-                pardner->mutex_point = producer_Mutex;
-                newPCB->mutex_point = producer_Mutex;
-                PriorityQ_enqueue(ready_PCBs, pardner, &error);
-                break;
-            }
-            case producer: {
-                PCB_p pardner = PCB_construct();
-                PCB_init(pardner, &error);
-                pardner->type = consumer;
-                pardner->priority = priority;
-                pardner->state = ready;
-                producer_Mutex = Mutex_constructor();
-                pardner->mutex_point = producer_Mutex;
-                newPCB->mutex_point = producer_Mutex;
-                PriorityQ_enqueue(ready_PCBs, pardner, &error);
-                break;
-            }
+        FIFOq_enqueue(new_PCBs, newPCB, &error);
 
+        char* stringPCB = PCB_toString(newPCB, &error);
+        printf("New IO process created: %s\n", stringPCB);
+        free(stringPCB);
+    }
+}
+
+void createComputeProcesses(int quantity, unsigned short priority) {
+    int error;
+
+    for (int i = 0; i < quantity; i++) {
+        PCB_p newPCB = PCB_construct();
+        PCB_init(newPCB, &error);
+        newPCB->priority = priority;
+        newPCB->type = compute;
+        newPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+
+        FIFOq_enqueue(new_PCBs, newPCB, &error);
+
+        char* stringPCB = PCB_toString(newPCB, &error);
+        printf("New compute process created: %s\n", stringPCB);
+        free(stringPCB);
+    }
+}
+
+// TODO: Add mutex stuff
+void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
+    int error;
+
+    for (int i = 0; i < quantity; i++) {
+        PCB_p consumerPCB = PCB_construct();
+        PCB_init(consumerPCB, &error);
+        consumerPCB->priority = priority;
+        consumerPCB->type = consumer;
+        consumerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        consumerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+
+        PCB_p producerPCB = PCB_construct();
+        PCB_init(producerPCB, &error);
+        producerPCB->priority = priority;
+        producerPCB->type = producer;
+        producerPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        producerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+
+        FIFOq_enqueue(new_PCBs, consumerPCB, &error);
+        FIFOq_enqueue(new_PCBs, producerPCB, &error);
+
+        char* stringConsumerPCB = PCB_toString(consumerPCB, &error);
+        char* stringProducerPCB = PCB_toString(producerPCB, &error);
+        printf("New consumer/producer process pair created: %s | %s\n", stringProducerPCB, stringConsumerPCB);
+        free(stringConsumerPCB);
+        free(stringProducerPCB);
+
+    }
+}
+
+void createResourceSharingProcesses(int quantity, int processesPerResource, unsigned short priority) {
+    int error;
+
+    for (int i = 0; i < quantity; i++) {
+        for (int j = 0; j < processesPerResource; j++) {
+            PCB_p newPCB = PCB_construct();
+            PCB_init(newPCB, &error);
+            newPCB->priority = priority;
+            newPCB->type = resource_user;
+            newPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+            newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+
+            FIFOq_enqueue(new_PCBs, newPCB, &error);
+
+            char* stringPCB = PCB_toString(newPCB, &error);
+            printf("New resource-using process created: %s\n", stringPCB);
+            free(stringPCB);
         }
-
-        PriorityQ_enqueue(ready_PCBs, newPCB, &error);
     }
 }
 
@@ -125,92 +157,4 @@ void populateIOTrapArrays(PCB_p pcb, int ioDevice) {
         pcb->io_2_traps[2] = num2;
         pcb->io_2_traps[3] = num3;
     }
-}
-
-void os_loop() {
-	CPU_quantum();
-	scheduler();
-}
-
-void scheduler() {
-
-
-}
-
-void CPU_cycle() {
-
-}
-
-void CPU_quantum() {
-	
-	int i;
-	for (i = 0; i < QUANTUM_OF_SOLACE; i++) {
-		current_pcb->pc++;
-		// If current PC exceeds max PC of the process, reset it, and check if process is to be terminated.
-		if (current_pcb->pc > current_pcb->maxPC) {
-			current_pcb->pc = 0;
-			current_pcb->term_count++;
-
-			// Check if the process is to be terminated.
-			if (current_pcb->term_count == current_pcb->terminate) {
-				Trap_Service_Routine(TERMINATE);
-				return; // No more execution needed.
-			}
-		}
-
-		// Check if the process is to execute an I/O trap during this cycle.
-		if (current_pcb->type == io && ioRequested(current_pcb->io_1_traps, current_pcb->pc)) {
-			Trap_Service_Routine(IO_1);
-		}
-		else if (current_pcb->type == io && ioRequested(current_pcb->io_2_traps, current_pcb->pc)) {
-			Trap_Service_Routine(IO_2);
-		}
-
-		if (Interrupt_Service_Routine(i))
-			break;
-	}
-}
-
-int Interrupt_Service_Routine(int current_cycle) {
-	if (current_cycle = QUANTUM_OF_SOLACE - 1)
-		return (int)Timer;
-	return FALSE;
-}
-
-void Trap_Service_Routine(int trap) {
-	int error = 0;
-	char* PCB_string;
-	switch (trap) {
-	case TIMER:
-		current_pcb->state = ready;
-		FIFOq_enqueue(ready_PCBs, current_pcb, &error);
-		break;
-	case TERMINATE:
-		current_pcb->state = terminated;
-		current_pcb->termination = time(NULL);
-		FIFOq_enqueue(terminated_PCBs, current_pcb, error);
-		current_pcb = NULL;
-		break;
-	case IO_1:
-		current_pcb->state = waiting;
-		FIFOq_enqueue(io1_PCBs, current_pcb, &error);
-		break;
-	case IO_2:
-		current_pcb->state = waiting;
-		FIFOq_enqueue(io2_PCBs, current_pcb, &error);
-		break;
-	default:
-		return; // If an unknown trap requested, don't do anything.
-	}
-
-	scheduler();
-}
-
-int ioRequested(unsigned long* traps, unsigned long PC) {
-	for (int i = 0; i < IO_TRAP_QUANTITY; i++) {
-		if (traps[i] == PC) {
-			return 1;
-		}
-	}
-	return 0;
 }

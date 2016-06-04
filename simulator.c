@@ -7,18 +7,11 @@
 #include <stdio.h>
 #include <time.h>
 
-#define MAXLOOPS 100000 //FROOTLOOPS
-
+#define MAXLOOPS 100000     // Number of CPU cycles to simulate.
 
 int main() {
 	srand(time(0));
-
-	initialize();
-
-	int i;
-	for (i = 0; i < MAXLOOPS; i++) {
-		os_loop();
-	}
+	OS_initialize();
 
 	return 0;
 }
