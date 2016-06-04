@@ -176,10 +176,10 @@ char* toStringIOArray(PCB_p pcb, int* error, int ioNum) {
 
     switch (ioNum) {
         case 1:
-            sprintf(str, "[%d, %d, %d, %d]", pcb->io_1_traps[0], pcb->io_1_traps[1], pcb->io_1_traps[2], pcb->io_1_traps[3]);
+            sprintf(str, "[0x%X, 0x%X, 0x%X, 0x%X]", pcb->io_1_traps[0], pcb->io_1_traps[1], pcb->io_1_traps[2], pcb->io_1_traps[3]);
             break;
         case 2:
-            sprintf(str, "[%d, %d, %d, %d]", pcb->io_2_traps[0], pcb->io_2_traps[1], pcb->io_2_traps[2], pcb->io_2_traps[3]);
+            sprintf(str, "[0x%X, 0x%X, 0x%X, 0x%X]", pcb->io_2_traps[0], pcb->io_2_traps[1], pcb->io_2_traps[2], pcb->io_2_traps[3]);
             break;
         default:
             return "[]";
@@ -204,10 +204,10 @@ char* toStringLockUnlockArray(PCB_p pcb, int* error, int selection) {
 
     switch (selection) {
         case 1:
-            sprintf(str, "[%d, %d, %d, %d]", pcb->lock_pcs[0], pcb->lock_pcs[1], pcb->lock_pcs[2], pcb->lock_pcs[3]);
+            sprintf(str, "[0x%X, 0x%X, 0x%X, 0x%X]", pcb->lock_pcs[0], pcb->lock_pcs[1], pcb->lock_pcs[2], pcb->lock_pcs[3]);
             break;
         case 2:
-            sprintf(str, "[%d, %d, %d, %d]", pcb->unlock_pcs[0], pcb->unlock_pcs[1], pcb->unlock_pcs[2], pcb->unlock_pcs[3]);
+            sprintf(str, "[0x%X, 0x%X, 0x%X, 0x%X]", pcb->unlock_pcs[0], pcb->unlock_pcs[1], pcb->unlock_pcs[2], pcb->unlock_pcs[3]);
             break;
         default:
             return "[]";

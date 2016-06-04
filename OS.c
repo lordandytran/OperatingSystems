@@ -19,7 +19,6 @@ void OS_initialize() {
     idle_pcb->type = idle;
     idle_pcb->maxPC = MAX_PC;
     idle_pcb->terminate = 0;
-    runDispatcher();
 
     // TODO: Revise
 	// Create a an initial set of processes.
@@ -36,6 +35,7 @@ void OS_initialize() {
 
     // Initialize the system.
     CPU_initialize();
+    runDispatcher();
 }
 
 void OS_loop() {
