@@ -1,17 +1,15 @@
 #ifndef CPU_H
 #define CPU_H
 
-typedef enum interrupt_type {timer_interrupt} Interrupt;
+#include "OS.h"
+#include "FIFOq.h"
 
 // Function prototypes
 Interrupt CPU_run();
 void CPU_setTimer(int timerAmount);
-void executeCurrentProcess();
-void checkForInterrupt();
-//void TSR(int);
-void scheduler();
-void ISR(int);
-void timerTick(int);
+TSR executeCurrentProcess();
+Interrupt checkForInterrupt();
+void timerTick(Device device);
 int ioRequested(unsigned long* traps, unsigned long PC);
 void CPU_initialize();
 

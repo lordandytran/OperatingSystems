@@ -6,7 +6,7 @@ void OS_initialize() {
     // Create the idle process and assign it as the first process.
     idle_pcb = PCB_construct();
     PCB_init(idle_pcb, &error);
-    idle_pcb->priority = LOWEST_PRIORITY + 1;
+    idle_pcb->priority = 4;
     idle_pcb->type = idle;
     idle_pcb->maxPC = MAX_PC;
     idle_pcb->terminate = 0;
@@ -54,15 +54,39 @@ void execute_ISR(Interrupt interrupt) {
     int error;
 
     switch (interrupt) {
-        case timer_interrupt:
+        case timer_interrupt: {
             current_pcb->state = interrupted;
 
-            char* PCB_string = PCB_toString(current_pcb, &error);
+            char *PCB_string = PCB_toString(current_pcb, &error);
             printf("Timer interrupt during %s\n", PCB_string);
             free(PCB_string);
 
             runScheduler(timer_interrupt);
             break;
+        }
+        case io1_interrupt: {
+            current_pcb->state = interrupted;
+
+            printf("I/O 1 Trap request complete.");
+            runScheduler(io1_interrupt);
+
+            current_pcb->state = running;
+            break;
+        }
+        case io2_interrupt: {
+            current_pcb->state = interrupted;
+
+            printf("I/O 2 Trap request complete.");
+            runScheduler(io2_interrupt);
+
+            current_pcb->state = running;
+            break;
+        }
+        case trap_interrupt: {
+            char* PCB_string = PCB_toString(current_pcb, &error);
+            printf("Trap interrupt during %s\n", PCB_string);
+            runScheduler(trap_interrupt);
+        }
     }
 }
 
@@ -93,6 +117,29 @@ void runScheduler(Interrupt interrupt) {
 
             runDispatcher();
             break;
+        case io1_interrupt: {
+            PCB_p completedIOPCB = FIFOq_dequeue(io1_PCBs, &error);
+            completedIOPCB->state = ready;
+            PriorityQ_enqueue(ready_PCBs, completedIOPCB, &error);
+
+            char* PCB_string = PCB_toString(completedIOPCB, &error);
+            printf("Returned to ready queue: %s\n", PCB_string);
+            free(PCB_string);
+        }
+        case io2_interrupt: {
+            PCB_p completedIOPCB = FIFOq_dequeue(io2_PCBs, &error);
+            completedIOPCB->state = ready;
+            PriorityQ_enqueue(ready_PCBs, completedIOPCB, &error);
+
+            char* PCB_string = PCB_toString(completedIOPCB, &error);
+            printf("Returned to ready queue: %s\n", PCB_string);
+            free(PCB_string);
+        }
+        case trap_interrupt:
+            // TODO: Revise
+            // The current PCB has been placed in it's appropriate queue, so just run the dispatcher to start the next process.
+            runDispatcher();
+            break;
     }
 
     // Housekeeping work.
@@ -114,10 +161,48 @@ void runDispatcher() {
     } else {
         current_pcb = PriorityQ_dequeue(ready_PCBs, &error);
     }
+    CPU_setTimer(TIMER_QUANTUM);    // Not sure if the dispatcher should do this.
 
     char* string = PCB_toString(current_pcb, &error);
     printf("Switching to: %s\n", string);
     free(string);
+}
+
+void execute_TSR(TSR routine) {
+    int error;
+
+    switch (routine) {
+        case io1_trap: {
+            current_pcb->state = waiting;
+            FIFOq_enqueue(io1_PCBs, current_pcb, &error);
+
+            char* PCB_string = PCB_toString(current_pcb, &error);
+            printf("I/O 1 Trap requested by %s\n", PCB_string);
+            free(PCB_string);
+            break;
+        }
+        case io2_trap: {
+            current_pcb->state = waiting;
+            FIFOq_enqueue(io2_PCBs, current_pcb, &error);
+
+            char* PCB_string = PCB_toString(current_pcb, &error);
+            printf("I/O 2 Trap requested by %s\n", PCB_string);
+            free(PCB_string);
+            break;
+        }
+        case terminate_trap: {
+            current_pcb->state = terminated;
+            current_pcb->termination = time(NULL);
+            FIFOq_enqueue(terminated_PCBs, current_pcb, &error);
+
+            char* PCB_string = PCB_toString(current_pcb, &error);
+            printf("Terminating: %s\n", PCB_string);
+            free(PCB_string);
+
+            current_pcb = NULL;
+            break;
+        }
+    }
 }
 
 void createIOProcesses(int quantity, unsigned short priority) {

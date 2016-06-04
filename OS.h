@@ -1,20 +1,22 @@
 #ifndef OS_H
 #define OS_H
 
-#include "PriorityQ.h"
-#include "FIFOq.h"
-#include "CPU.h"
 #include <stdio.h>
 
+#include "FIFOq.h"
+#include "PriorityQ.h"
+
 #define MAX_PROCESSES 20
-#define LOWEST_PRIORITY 3
-#define HIGHEST_PRIORITY 0
 #define MAX_PC 4000
 #define MIN_PC 1000
 #define MAX_TERMINATE 15
 #define TIMER_QUANTUM 500
 
-typedef enum tsr_type {timer} TSR;
+typedef enum tsr_type {io1_trap, io2_trap, terminate_trap} TSR;
+typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt} Interrupt;
+typedef enum device_type {timer_device, io1_device, io2_device} Device;
+
+#include "CPU.h"
 
 PCB_p current_pcb;
 PCB_p idle_pcb;
@@ -36,5 +38,6 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 void execute_ISR(Interrupt interrupt);
 void runScheduler(Interrupt interrupt);
 void runDispatcher();
+void execute_TSR(TSR routine);
 
 #endif

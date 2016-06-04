@@ -1,7 +1,4 @@
 #include "Mutex.h"
-#include "PCB.h"
-#include "FIFOq.h"
-#include "errors.h"
 
 #include <stdlib.h>
 

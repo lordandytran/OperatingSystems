@@ -1,7 +1,10 @@
 #ifndef PriorityQ_H
 #define PriorityQ_H
+
 #include "PCB.h"
 #include "FIFOq.h"
+#include "errors.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct PriorityQ {
