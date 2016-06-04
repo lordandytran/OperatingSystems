@@ -1,18 +1,18 @@
-#ifndef CPU_H
-#define CPU_H
-
-typedef enum interrupt_type {timer_interrupt} Interrupt;
+#ifndef _CPU_H
+#define _CPU_H
 
 // Function prototypes
-Interrupt CPU_run();
-void CPU_setTimer(int timerAmount);
+void CPU_cycle();
 void executeCurrentProcess();
 void checkForInterrupt();
-//void TSR(int);
+void TSR(int);
 void scheduler();
 void ISR(int);
 void timerTick(int);
 int ioRequested(unsigned long* traps, unsigned long PC);
-void CPU_initialize();
+void init();
+void populateWithRandomPCBs(FIFOq_p queue, int amount);
+void populateIOTrapArrays(PCB_p, int);
+
 
 #endif

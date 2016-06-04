@@ -2,7 +2,6 @@
 #include "FIFOq.h"
 #include "PriorityQ.h"
 #include "errors.h"
-#include "OS.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -19,7 +18,7 @@ void PriorityQ_init(PriorityQ_p priority_queue, int* error) {
 		return;
 	}
 	int i;
-	for (i = HIGHEST_PRIORITY; i <= LOWEST_PRIORITY; i++) {
+	for (i = MIN_PRIORITY; i <= MAX_PRIORITY; i++) {
 		priority_queue->queue_array[i] = FIFOq_construct();
 	}
 }
@@ -45,19 +44,10 @@ PCB_p PriorityQ_dequeue(PriorityQ_p priority_queue, int* error) {
 		return NULL;
 	}
 	int i;
-	for (i = HIGHEST_PRIORITY; i <= LOWEST_PRIORITY; i++) {
+	for (i = MIN_PRIORITY; i <= MAX_PRIORITY; i++) {
 		if (!FIFOq_isEmpty(priority_queue->queue_array[i], error)) {
 			return FIFOq_dequeue(priority_queue->queue_array[i], error);
 		}
 	}
 	return NULL;
-}
-
-int PriorityQ_isEmpty(PriorityQ_p priority_queue, int* error) {
-    for (int i = HIGHEST_PRIORITY; i <= LOWEST_PRIORITY; i++) {
-        if (!FIFOq_isEmpty(priority_queue->queue_array[i], error)) {
-            return 0;
-        }
-    }
-    return 1;
 }
