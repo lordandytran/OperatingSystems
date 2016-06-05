@@ -47,6 +47,7 @@ void OS_loop() {
     printf("Now Running: %s\n", string);
     free(string);
     Interrupt interrupt = CPU_run();
+    starvationDetection();
 
     execute_ISR(interrupt);
 }
@@ -119,6 +120,11 @@ void runScheduler(Interrupt interrupt) {
 
             // Put the interrupted process into the ready queue (if it's not the idle process).
             if (current_pcb != idle_pcb) {
+                // If this is a boosted PCB, we can unboost it
+                if(current_pcb->priority_boost) {
+                    current_pcb->priority_boost = 0;
+                }
+
                 PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
                 char* string = PCB_toString(current_pcb, &error);
                 printf("Returned to ready queue: %s\n", string);
@@ -225,6 +231,35 @@ void execute_TSR(TSR routine) {
     }
 }
 
+void starvationDetection() {
+    // The current PCB is getting run time
+    current_pcb->starvation_count = 0;
+
+    // Start looping at 1, since there will never be starvation at the
+    // highest priority
+    for(int i = 1; i < MAX_PRIORITY; i++) {
+        FIFOq_p levelQueue = ready_PCBs->queue_array[i];
+
+        if(levelQueue->size > 0) {
+            // Increment the starvation count for the front node
+            PCB_p head = ((PCB_p)levelQueue->front->value);
+            head->starvation_count++;
+            printf("Starvation count: %d\n", head->starvation_count);
+
+            // Check if the starvation count exceeds starvation threshold
+            if(head->starvation_count > STARVATION_THRESHOLD) {
+                printf("PCB was starved for %d cycles. Boosting priority level.\n", head->starvation_count);
+
+                // Boost it and enqueue it at the next highest queue
+                head->priority_boost = 1;
+                head->starvation_count = 0;
+                FIFOq_dequeue(ready_PCBs->queue_array[i],
+                    ready_PCBs->queue_array[i-1]);
+            }
+        }
+    }
+}
+
 void createIOProcesses(int quantity, unsigned short priority) {
     int error;
 
@@ -327,9 +362,6 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 void populateMutexPCArrays(PCB_p pcb) {
     int lockPCs[MUTEX_PC_QUANTITY] = {10, 30, 50, 70};
     memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(int));
-
-    /*memcpy(pcb->lock, (int[MUTEX_PC_QUANTITY]) {15, 35, 55, 75},
-            MUTEX_PC_QUANTITY * sizeof(int));*/
 
     int unlockPCs[MUTEX_PC_QUANTITY] = {20, 40, 60, 80};
     memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(int));

@@ -41,6 +41,7 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 void execute_ISR(Interrupt interrupt);
 void runScheduler(Interrupt interrupt);
 void runDispatcher();
+void starvationDetection();
 void execute_TSR(TSR routine);
 
 #endif
