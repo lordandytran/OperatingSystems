@@ -22,7 +22,7 @@ void OS_initialize() {
 
     // TODO: Revise
 	// Create a an initial set of processes.
-    //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
     //createConsumerProducerProcessPairs(1, 1);
     //createConsumerProducerProcessPairs(1, 2);
     //createConsumerProducerProcessPairs(1, 3);
@@ -32,6 +32,9 @@ void OS_initialize() {
     //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+    createIOProcesses(1, 1);
+    createIOProcesses(1, 2);
+    createIOProcesses(1, 3);
 
     // Initialize the system.
     CPU_initialize();
@@ -232,6 +235,8 @@ void execute_TSR(TSR routine) {
 }
 
 void starvationDetection() {
+    int error;
+
     // The current PCB is getting run time
     current_pcb->starvation_count = 0;
 
@@ -244,17 +249,18 @@ void starvationDetection() {
             // Increment the starvation count for the front node
             PCB_p head = ((PCB_p)levelQueue->front->value);
             head->starvation_count++;
-            printf("Starvation count: %d\n", head->starvation_count);
+            //printf("Starvation count for PID %lu: %d\n", head->PID, head->starvation_count);
 
             // Check if the starvation count exceeds starvation threshold
             if(head->starvation_count > STARVATION_THRESHOLD) {
-                printf("PCB was starved for %d cycles. Boosting priority level.\n", head->starvation_count);
+                printf("PID %lu was starved for %d cycles. Boosting priority level.\n", head->PID,
+                       head->starvation_count);
 
                 // Boost it and enqueue it at the next highest queue
                 head->priority_boost = 1;
                 head->starvation_count = 0;
-                FIFOq_dequeue(ready_PCBs->queue_array[i],
-                    ready_PCBs->queue_array[i-1]);
+                PCB_p boosted = FIFOq_dequeue(ready_PCBs->queue_array[i], &error);
+                PriorityQ_enqueue(ready_PCBs, boosted, &error);
             }
         }
     }

@@ -29,7 +29,7 @@ void PriorityQ_enqueue(PriorityQ_p priority_queue, PCB_p pcb, int* error) {
 		printf("pcb is NULL on PriorityQ_enqueue(PriorityQ_p, PCB_p, int*) call. ERROR: %d\n", *error);
 		return;
 	}
-	FIFOq_enqueue(priority_queue->queue_array[pcb->priority], pcb, error);
+	FIFOq_enqueue(priority_queue->queue_array[pcb->priority - pcb->priority_boost], pcb, error);
 }
 
 PCB_p PriorityQ_dequeue(PriorityQ_p priority_queue, int* error) {
