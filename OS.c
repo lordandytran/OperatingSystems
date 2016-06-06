@@ -23,18 +23,15 @@ void OS_initialize() {
     // TODO: Revise
 	// Create a an initial set of processes.
     createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
-    //createConsumerProducerProcessPairs(1, 1);
-    //createConsumerProducerProcessPairs(1, 2);
-    //createConsumerProducerProcessPairs(1, 3);
-    //createResourceSharingProcesses(1, 2, 1);
-    //createResourceSharingProcesses(1, 2, 2);
-    //createResourceSharingProcesses(1, 2, 3);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
-    createIOProcesses(1, 1);
-    createIOProcesses(1, 2);
-    createIOProcesses(1, 3);
+    createConsumerProducerProcessPairs(1, 1);
+    createConsumerProducerProcessPairs(1, 2);
+    createConsumerProducerProcessPairs(1, 3);
+    createResourceSharingProcesses(1, 2, 1);
+    createResourceSharingProcesses(1, 2, 2);
+    createResourceSharingProcesses(1, 2, 3);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
     CPU_initialize();
@@ -42,16 +39,17 @@ void OS_initialize() {
 }
 
 void OS_loop() {
-    // TODO: Generate new processes.
     int error;
+
+    topOffProcesses();
 
     // Run the current process until the next interrupt or trap call.
     char* string = PCB_toString(current_pcb, &error);
     printf("Now Running: %s\n", string);
     free(string);
     Interrupt interrupt = CPU_run();
-    starvationDetection();
 
+    starvationDetection();
     execute_ISR(interrupt);
 }
 
@@ -360,6 +358,36 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
             char* stringPCB = PCB_toStringDetailed(newPCB, &error);
             printf("New resource-using process created: %s\n", stringPCB);
             free(stringPCB);
+        }
+    }
+}
+
+void topOffProcesses() {
+    int error;
+
+    // readyPCBs + 1 because there is a process running that is not in the ready queue.
+    while (PriorityQ_size(ready_PCBs, &error) + 1 + FIFOq_getSize(io1_PCBs, &error)
+           + FIFOq_getSize(io2_PCBs, &error) + FIFOq_getSize(new_PCBs, &error) < MAX_PROCESSES) {
+        int type = rand() % 4;
+        // This will be the priority of processes that are not compute processes
+        // (since priority 0 processes are only computer processes).
+        unsigned short priority = (unsigned short) ((unsigned  short) (rand() % 3) + 1);
+
+        switch (type) {
+            case 0:
+                createIOProcesses(1, priority);
+                break;
+            case 1:
+                createResourceSharingProcesses(1, 2, priority);
+                break;
+            case 2:
+                createConsumerProducerProcessPairs(1, priority);
+                break;
+            case 3:
+                createComputeProcesses(1, 0);
+                break;
+            default:
+                break;
         }
     }
 }

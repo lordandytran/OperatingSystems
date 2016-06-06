@@ -55,3 +55,11 @@ int PriorityQ_isEmpty(PriorityQ_p priority_queue, int* error) {
     }
     return 1;
 }
+
+int PriorityQ_size(PriorityQ_p priority_queue, int*error) {
+	int size = 0;
+	for (int i = 0; i <= 3; i++) {
+		size += FIFOq_getSize(priority_queue->queue_array[i], error);
+	}
+	return size;
+}

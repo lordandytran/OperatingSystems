@@ -43,5 +43,6 @@ void runScheduler(Interrupt interrupt);
 void runDispatcher();
 void starvationDetection();
 void execute_TSR(TSR routine);
+void topOffProcesses();
 
 #endif
