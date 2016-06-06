@@ -25,7 +25,7 @@ typedef struct pcb {
 	unsigned long io_2_traps[IO_TRAP_QUANTITY];     // Note: Uninitialized
 
 	unsigned int pair_id; // Producer/consumer pair ID
-
+    int shared_resource;
 	unsigned int lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned int unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
 } PCB;

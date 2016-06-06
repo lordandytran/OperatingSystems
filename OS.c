@@ -29,7 +29,7 @@ void OS_initialize() {
     //createResourceSharingProcesses(1, 2, 1);
     //createResourceSharingProcesses(1, 2, 2);
     //createResourceSharingProcesses(1, 2, 3);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
@@ -266,7 +266,6 @@ void createComputeProcesses(int quantity, unsigned short priority) {
     }
 }
 
-// TODO: Add mutex stuff
 void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
     static unsigned int currentPair = 0;
     int error;
@@ -327,9 +326,6 @@ void createResourceSharingProcesses(int quantity, int processesPerResource, unsi
 void populateMutexPCArrays(PCB_p pcb) {
     int lockPCs[MUTEX_PC_QUANTITY] = {10, 30, 50, 70};
     memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(int));
-
-    /*memcpy(pcb->lock, (int[MUTEX_PC_QUANTITY]) {15, 35, 55, 75},
-            MUTEX_PC_QUANTITY * sizeof(int));*/
 
     int unlockPCs[MUTEX_PC_QUANTITY] = {20, 40, 60, 80};
     memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(int));
