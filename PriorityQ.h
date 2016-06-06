@@ -7,9 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAX_PRIORITY 4
+
 typedef struct PriorityQ {
 
-	FIFOq_p queue_array[4];
+	FIFOq_p queue_array[MAX_PRIORITY];
 
 } PriorityQ;
 typedef PriorityQ * PriorityQ_p;

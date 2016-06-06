@@ -28,7 +28,10 @@ int PCB_init(PCB_p pcb, int* error) {
     pcb->creation = time(NULL);
     pcb->termination = -1;      // Not terminated yet.
     pcb->term_count = 0;
-	
+
+	pcb->priority_boost = 0;
+	pcb->starvation_count = 0;
+
     PIDCount++;
 	return SUCCESS;
 }
