@@ -1,32 +1,48 @@
 #ifndef OS_H
 #define OS_H
 
+#include <stdio.h>
+#include <memory.h>
+
+#include "FIFOq.h"
 #include "PriorityQ.h"
 
-#define TIMER 1
-#define TERMINATE 2
-#define IO_1 3
-#define IO_2 4
+#define MAX_PROCESSES 20
+#define MAX_PC 4000
+#define MIN_PC 1000
+#define MAX_TERMINATE 15
+#define TIMER_QUANTUM 500
 
-enum interrupt_type {Timer, IO1, IO2};
+typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap} TSR;
+typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt, no_interrupt} Interrupt;
+typedef enum device_type {timer_device, io1_device, io2_device} Device;
+
+#include "CPU.h"
 
 PCB_p current_pcb;
+PCB_p idle_pcb;
+TSR trap;
 
-FIFOq_p terminated_PCBs;
+FIFOq_p new_PCBs;
+PriorityQ_p ready_PCBs;
 FIFOq_p io1_PCBs;
 FIFOq_p io2_PCBs;
-PriorityQ_p ready_PCBs;
+FIFOq_p terminated_PCBs;
 
 // Prototypes
-void initialize();
-void generatePCBs(unsigned short, enum pcb_type, int);
+void OS_initialize();
+void OS_loop();
+void createIOProcesses(int quantity, unsigned short priority);
+void populateMutexPCArrays(PCB_p pcb);
 void populateIOTrapArrays(PCB_p pcb, int ioDevice);
-void fillIO();
-void os_loop();
-void scheduler();
-void CPU_quantum();
-int Interrupt_Service_Routine(int);
-void Trap_Service_Routine(int);
-int ioRequested(unsigned long*, unsigned long);
+void createComputeProcesses(int quantity, unsigned short priority);
+void createConsumerProducerProcessPairs(int quantity, unsigned short priority);
+void createResourceSharingProcesses(int quantity, int processesPerResource, unsigned short priority);
+void execute_ISR(Interrupt interrupt);
+void runScheduler(Interrupt interrupt);
+void runDispatcher();
+void starvationDetection();
+void execute_TSR(TSR routine);
+void topOffProcesses();
 
 #endif
