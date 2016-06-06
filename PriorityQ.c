@@ -1,9 +1,4 @@
-#include "PCB.h"
-#include "FIFOq.h"
 #include "PriorityQ.h"
-#include "errors.h"
-#include <stdlib.h>
-#include <stdio.h>
 
 
 PriorityQ_p PriorityQ_construct() {
@@ -18,7 +13,7 @@ void PriorityQ_init(PriorityQ_p priority_queue, int* error) {
 		return;
 	}
 	int i;
-	for (i = MIN_PRIORITY; i <= MAX_PRIORITY; i++) {
+	for (i = 0; i <= 3; i++) {
 		priority_queue->queue_array[i] = FIFOq_construct();
 	}
 }
@@ -34,7 +29,7 @@ void PriorityQ_enqueue(PriorityQ_p priority_queue, PCB_p pcb, int* error) {
 		printf("pcb is NULL on PriorityQ_enqueue(PriorityQ_p, PCB_p, int*) call. ERROR: %d\n", *error);
 		return;
 	}
-	FIFOq_enqueue(priority_queue->queue_array[pcb->priority], pcb, error);
+	FIFOq_enqueue(priority_queue->queue_array[pcb->priority - pcb->priority_boost], pcb, error);
 }
 
 PCB_p PriorityQ_dequeue(PriorityQ_p priority_queue, int* error) {
@@ -44,10 +39,27 @@ PCB_p PriorityQ_dequeue(PriorityQ_p priority_queue, int* error) {
 		return NULL;
 	}
 	int i;
-	for (i = MIN_PRIORITY; i <= MAX_PRIORITY; i++) {
+	for (i = 0; i <= 3; i++) {
 		if (!FIFOq_isEmpty(priority_queue->queue_array[i], error)) {
 			return FIFOq_dequeue(priority_queue->queue_array[i], error);
 		}
 	}
 	return NULL;
+}
+
+int PriorityQ_isEmpty(PriorityQ_p priority_queue, int* error) {
+    for (int i = 0; i <= 3; i++) {
+        if (!FIFOq_isEmpty(priority_queue->queue_array[i], error)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int PriorityQ_size(PriorityQ_p priority_queue, int*error) {
+	int size = 0;
+	for (int i = 0; i <= 3; i++) {
+		size += FIFOq_getSize(priority_queue->queue_array[i], error);
+	}
+	return size;
 }
