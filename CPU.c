@@ -48,6 +48,12 @@ TSR executeCurrentProcess() {
         } else if (ioRequested(current_pcb->io_2_traps, current_pcb->PC)) {
             return io2_trap;
         }
+    } else if (current_pcb->type == producer) {
+        // do producer stuff
+    } else if (current_pcb->type == consumer) {
+        // do consumer stuff
+    } else if (current_pcb->type == resource_user) {
+        // do resource user stuff
     }
 
     return no_trap;

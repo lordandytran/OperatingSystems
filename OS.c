@@ -1,4 +1,5 @@
 #include "OS.h"
+#include "Mutex.h"
 
 void OS_initialize() {
     int error;
@@ -327,6 +328,13 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         producerPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
         populateMutexPCArrays(producerPCB);
         producerPCB->pair_id = currentPair;
+
+        int* sharedResource = malloc(sizeof(int));
+        Mutex_p mutex = Mutex_constructor();
+        consumerPCB->shared_resource = sharedResource;
+        producerPCB->shared_resource = sharedResource;
+        consumerPCB->shared_resource_mutex = mutex;
+        producerPCB->shared_resource_mutex = mutex;
 
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);

@@ -13,6 +13,7 @@ typedef struct mutex_t {
 	PCB_p key; //Which PCB has control
 	int locked; //TRUE if locked. FALSE if not
 	FIFOq_p wait; //Queue of PCB's that want control
+	int destroyed;  // True if the shared resource is still allocated (in case a process terminates).
 
 } Mutex;
 typedef Mutex * Mutex_p;

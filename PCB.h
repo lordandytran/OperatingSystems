@@ -2,6 +2,7 @@
 #define PCB_H
 
 #include <time.h>
+#include "Mutex.h"
 
 #define IO_TRAP_QUANTITY 4
 #define MUTEX_PC_QUANTITY 4
@@ -29,7 +30,9 @@ typedef struct pcb {
 	unsigned long io_2_traps[IO_TRAP_QUANTITY];     // Note: Uninitialized
 
 	unsigned int pair_id; // Producer/consumer pair ID
-    int shared_resource;
+    int* shared_resource;	// Note: In a producer/consumer scenario, this should be freed when the producer is terminated.
+							// In a resource-user scenario, this should be freed when the last resource user is terminated.
+	Mutex_p shared_resource_mutex;
 	unsigned int lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned int unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
 } PCB;
