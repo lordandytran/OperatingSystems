@@ -1,6 +1,6 @@
 #include "OS.h"
 
-#define MAXLOOPS 100     // Number of CPU cycles to simulate.
+#define MAXLOOPS 1000     // Number of CPU cycles to simulate.
 
 int main() {
 	srand((unsigned int) (time(0)));

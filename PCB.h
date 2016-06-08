@@ -3,17 +3,16 @@
 
 #include <time.h>
 #include "errors.h"
-#include "Mutex.h"
 
 #define IO_TRAP_QUANTITY 4
 #define MUTEX_PC_QUANTITY 4
-#define MAX_PC_VAL 5000
-#define STARVATION_THRESHOLD 15
 
 enum state_type { new, ready, running, interrupted, waiting, terminated };
 enum pcb_type { io, compute, producer, consumer, resource_user, idle };
 
-typedef struct pcb {
+typedef struct pcb_t * PCB_p;
+
+struct pcb_t {
 	unsigned long PID;
 	unsigned short priority;    // Note: Uninitialized
 	unsigned short priority_boost;
@@ -37,9 +36,7 @@ typedef struct pcb {
 	struct mutex_t* shared_resource_mutex;
 	unsigned long lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned long unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
-} PCB;
-typedef PCB * PCB_p;
-
+};
 
 PCB_p PCB_construct(void);
 void PCB_destruct(PCB_p);

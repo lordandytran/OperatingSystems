@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 PCB_p PCB_construct() {
-	PCB_p pcb = (PCB_p) malloc(sizeof(PCB));
+	PCB_p pcb = (PCB_p) malloc(sizeof(struct pcb_t));
 	return pcb;
 }
 
