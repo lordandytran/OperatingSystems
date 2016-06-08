@@ -12,5 +12,6 @@ Interrupt checkForInterrupt();
 void timerTick(Device device);
 int ioRequested(unsigned long* traps, unsigned long PC);
 void CPU_initialize();
+int mutexRequest(unsigned long *lockPCs, unsigned long PC);
 
 #endif

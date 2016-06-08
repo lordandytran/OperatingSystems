@@ -11,9 +11,9 @@
 #define MAX_PC 4000
 #define MIN_PC 1000
 #define MAX_TERMINATE 15
-#define TIMER_QUANTUM 500
+#define TIMER_QUANTUM 1
 
-typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap} TSR;
+typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap, mutex_lock_trap, mutex_unlock_trap, condition_signal_and_wait_trap} TSR;
 typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt, no_interrupt} Interrupt;
 typedef enum device_type {timer_device, io1_device, io2_device} Device;
 

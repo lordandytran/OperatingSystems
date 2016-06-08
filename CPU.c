@@ -41,19 +41,60 @@ TSR executeCurrentProcess() {
         }
     }
 
-    // If it's an I/O process, check if the process is to execute an I/O trap during this cycle.
-    if (current_pcb->type == io) {
-        if (ioRequested(current_pcb->io_1_traps, current_pcb->PC)) {
-            return io1_trap;
-        } else if (ioRequested(current_pcb->io_2_traps, current_pcb->PC)) {
-            return io2_trap;
-        }
-    } else if (current_pcb->type == producer) {
-        // do producer stuff
-    } else if (current_pcb->type == consumer) {
-        // do consumer stuff
-    } else if (current_pcb->type == resource_user) {
-        // do resource user stuff
+    switch (current_pcb->type) {
+        case io:
+            // Check if the process is to execute an I/O trap during this cycle.
+            if (ioRequested(current_pcb->io_1_traps, current_pcb->PC)) {
+                return io1_trap;
+            } else if (ioRequested(current_pcb->io_2_traps, current_pcb->PC)) {
+                return io2_trap;
+            }
+            break;
+        case producer:
+            // Note: The assumption is that the producer is running only at the following times:
+            // The producer has just been unblocked from a conditional wait (so the mutex is unlocked, variable not incremented)
+            if (mutexRequest(current_pcb->lock_pcs, current_pcb->PC)) {
+                // It's time to increment the variable, try to acquire the mutex lock.
+                return mutex_lock_trap;
+                // If the mutex lock fails, the process won't resume execution until it acquires the mutex lock.
+                // If the mutex lock is successful, the process will resume execution again here in CPU.
+                // The above if statement won't be executed, as the PC will now be incremented one past the mutex lock PC value.
+            }
+            // The producer has just successfully acquired a mutex lock (so the mutex is locked, variable is not incremented)
+            if (current_pcb->shared_resource_mutex->key == current_pcb) {
+                // Now that we have the mutex, we may now write to memory.
+                (*current_pcb->shared_resource)++;
+                printf("Producer #%d writing %d to shared memory.\n", current_pcb->pair_id, *current_pcb->shared_resource);
+                // Now that the shared memory is modified, signal the consumer to read it.
+                // Request to be blocked until the consumer has read again (and signaled the producer to wake up).
+                return condition_signal_and_wait_trap;
+            }
+            break;
+        case consumer:
+            // Note: The assumption is that the consumer is running only at the following times:
+            // The consumer has just been unblocked from a conditional wait (so the mutex is unlocked, variable not read)
+            if (mutexRequest(current_pcb->lock_pcs, current_pcb->PC)) {
+                // It's time to read the variable, try to acquire the mutex lock.
+                return mutex_lock_trap;
+                // If the mutex lock fails, the process won't resume execution until it acquires the mutex lock.
+                // If the mutex lock is successful, the process will resume execution again here in CPU.
+                // The above if statement won't be executed, as the PC will now be incremented one past the mutex lock PC value.
+            }
+            // The consumer has just successfully acquired a mutex lock (so the mutex is locked, variable is not read)
+            if (current_pcb->shared_resource_mutex->key == current_pcb) {
+                // Now that we have the mutex, we may now read from memory.
+                printf("Consumer #%d reading %d from shared memory.\n", current_pcb->pair_id, *current_pcb->shared_resource);
+                // Now that the shared memory is read, signal the producer to write to it.
+                // Request to be blocked until the producer has written again (and signaled the consumer to wake up).
+                return condition_signal_and_wait_trap;
+            }
+            break;
+        case resource_user:
+            break;
+        case compute:
+            break;
+        case idle:
+            break;
     }
 
     return no_trap;
@@ -62,6 +103,15 @@ TSR executeCurrentProcess() {
 int ioRequested(unsigned long* traps, unsigned long PC) {
     for (int i = 0; i < IO_TRAP_QUANTITY; i++) {
         if(traps[i] == PC) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int mutexRequest(unsigned long *lockPCs, unsigned long PC) {
+    for (int i = 0; i < MUTEX_PC_QUANTITY; i++) {
+        if (lockPCs[i] == PC) {
             return 1;
         }
     }
