@@ -34,6 +34,7 @@ struct pcb_t {
 							// In a resource-user scenario, this should be freed when the last resource user is terminated.
     struct conditional_t* conditional_variable;
 	struct mutex_t* shared_resource_mutex;
+    unsigned long use_resource_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID does its consumer/producer operations.
 	unsigned long lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned long unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
 };

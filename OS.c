@@ -386,6 +386,11 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         consumerPCB->conditional_variable = conditional;
         producerPCB->conditional_variable = conditional;
 
+        // Perhaps this can be generated later.
+        unsigned long pcs[MUTEX_PC_QUANTITY] = {500, 1000, 1500, 3000};
+        memcpy(consumerPCB->use_resource_pcs, pcs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
+        memcpy(producerPCB->use_resource_pcs, pcs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
+
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
         currentPair++;
@@ -454,7 +459,7 @@ void populateMutexPCArrays(PCB_p pcb) {
     unsigned long lockPCs[MUTEX_PC_QUANTITY] = {50, 150, 2500, 3500};
     memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 
-    int unlockPCs[MUTEX_PC_QUANTITY] = {10, 20, 30, 40};
+    int unlockPCs[MUTEX_PC_QUANTITY] = {100, 200, 3000, 4000};
     memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 }
 
