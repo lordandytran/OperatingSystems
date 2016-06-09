@@ -23,5 +23,6 @@ void FIFOq_enqueue(FIFOq_p, void*, int*);
 void* FIFOq_dequeue(FIFOq_p, int*);
 int FIFOq_isEmpty(FIFOq_p, int*);
 int FIFOq_getSize(FIFOq_p, int*);
+void FIFOq_remove(FIFOq_p queue, void* item, int* error);
 
 #endif

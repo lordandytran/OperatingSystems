@@ -72,6 +72,29 @@ void* FIFOq_dequeue(FIFOq_p queue, int* error) {
 	return temp->value;
 }
 
+void FIFOq_remove(FIFOq_p queue, void* item, int* error) {
+    if (queue == NULL) {
+        *error = QNULLERROR;
+        printf("queue is NULL on FIFOq_dequeue(FIFOq_p, int*) call. ERROR: %d\n", *error);
+    }
+    struct Node *temp = (struct Node*)malloc(sizeof(struct Node));
+    if (temp == NULL) {
+        *error = NODENULLERROR;
+        printf("temp Node is NULL on FIFOq_dequeue(FIFOq_p, int*) call. ERROR: %d\n", *error);
+    }
+
+    if (!FIFOq_isEmpty(queue, error)) {
+        temp = queue->front;
+        while (temp != NULL) {
+            if (temp->value == item) {
+                temp->next = temp->next->next;
+                free(temp);
+            }
+            temp = temp->next;
+        }
+    }
+}
+
 int FIFOq_isEmpty(FIFOq_p queue, int* error) {
 	if (queue == NULL) {
 		*error = QNULLERROR;

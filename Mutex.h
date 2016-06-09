@@ -31,6 +31,7 @@ Mutex_p Mutex_constructor();
 int Mutex_lock(Mutex_p, PCB_p);
 int Mutex_unlock(Mutex_p, PCB_p);
 int Mutex_trylock(Mutex_p, PCB_p);
+void Mutex_remove(Mutex_p mut, PCB_p pcb);
 
 Conditional_p Conditional_constructor();
 void Conditional_destructor(Conditional_p);

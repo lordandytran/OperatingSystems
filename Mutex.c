@@ -66,6 +66,13 @@ int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
 	}
 }
 
+// Removes all instances of the passed pcbs in the waiting list and the key. Useful for process termination.
+void Mutex_remove(Mutex_p mut, PCB_p pcb) {
+    int error = 0;
+    Mutex_unlock(mut, pcb);
+    FIFOq_remove(mut->wait, pcb, &error);
+}
+
 
 
 Conditional_p Conditional_constructor() {
@@ -109,8 +116,6 @@ PCB_p Condition_signal(Conditional_p conditional, PCB_p pcb) {
     }
     return returningPCB;
 }
-
-
 
 
 //Force unlocks and replaces controller with next in queue. Dangerous

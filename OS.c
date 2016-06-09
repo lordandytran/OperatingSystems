@@ -28,8 +28,8 @@ void OS_initialize() {
     //createConsumerProducerProcessPairs(1, 2);
     //createConsumerProducerProcessPairs(1, 3);
     createResourceSharingProcesses(1, 1);
-    //createResourceSharingProcesses(1, 2);
-    //createResourceSharingProcesses(1, 3);
+    createResourceSharingProcesses(1, 2);
+    createResourceSharingProcesses(1, 3);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
     //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
@@ -103,7 +103,6 @@ void execute_ISR(Interrupt interrupt) {
 
 void runScheduler(Interrupt interrupt) {
     int error;
-    starvationDetection();
 
     // Add any newly created PCBs to the ready queue.
     while (!FIFOq_isEmpty(new_PCBs, &error)) {
@@ -165,6 +164,8 @@ void runScheduler(Interrupt interrupt) {
     }
 
     // Housekeeping work.
+    starvationDetection();
+
     // Free all terminated PCBs.
     while (!FIFOq_isEmpty(terminated_PCBs, &error)) {
         PCB_p terminatedPCB = FIFOq_dequeue(terminated_PCBs, &error);
@@ -223,11 +224,19 @@ void execute_TSR(TSR routine) {
             current_pcb->termination = time(NULL);
             FIFOq_enqueue(terminated_PCBs, current_pcb, &error);
 
+            // Unlock any mutexes that this terminated PCB may have.
+            if (current_pcb->type == consumer || current_pcb->type == producer || current_pcb->type == resource_user_A) {
+                Mutex_remove(current_pcb->mutex_A, current_pcb);
+            } else  if (current_pcb->type == resource_user_B) {
+                Mutex_remove(current_pcb->mutex_B, current_pcb);
+            }
+
             char* PCB_string = PCB_toString(current_pcb, &error);
             printf("Terminated process: %s\n", PCB_string);
             free(PCB_string);
-
             current_pcb = NULL;
+
+
             runScheduler(trap_interrupt);
             break;
         }
