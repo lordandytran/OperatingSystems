@@ -1,3 +1,13 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #ifndef OS_H
 #define OS_H
 
@@ -25,6 +35,8 @@ PCB_p current_pcb;
 PCB_p idle_pcb;
 TSR trap;
 int deadlock;
+int processes_created;
+int processes_terminated;
 
 FIFOq_p new_PCBs;
 PriorityQ_p ready_PCBs;

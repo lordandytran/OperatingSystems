@@ -1,8 +1,20 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #include "OS.h"
 
 void OS_initialize() {
     int error;
     deadlock = FALSE;
+    processes_created = 0;
+    processes_terminated = 0;
 
     // Initialize all of the queues.
     new_PCBs = FIFOq_construct();
@@ -42,7 +54,7 @@ void OS_initialize() {
 void OS_loop() {
     int error;
 
-    //topOffProcesses();
+    topOffProcesses();
 
     // Run the current process until the next interrupt or trap call.
     char* string = PCB_toString(current_pcb, &error);
@@ -230,6 +242,7 @@ void execute_TSR(TSR routine) {
             current_pcb->state = terminated;
             current_pcb->termination = time(NULL);
             FIFOq_enqueue(terminated_PCBs, current_pcb, &error);
+            processes_terminated++;
 
             // Unlock any mutexes that this terminated PCB may have.
             if (current_pcb->type == consumer || current_pcb->type == producer || current_pcb->type == resource_user_A) {
@@ -242,7 +255,6 @@ void execute_TSR(TSR routine) {
             printf("Terminated process: %s\n", PCB_string);
             free(PCB_string);
             current_pcb = NULL;
-
 
             runScheduler(trap_interrupt);
             break;
@@ -306,12 +318,14 @@ void execute_TSR(TSR routine) {
 
             PCB_p returnedPCB = Condition_signal(current_pcb->conditional_variable, current_pcb);
             if (returnedPCB != NULL) {
+                returnedPCB->state = ready;
                 PriorityQ_enqueue(ready_PCBs, returnedPCB, &error);
             }
 
             printf("PID %lu: requested wait on condition %lu with mutex M%lu\n", current_pcb->PID,
                    current_pcb->conditional_variable->ID, current_pcb->mutex_A->ID);
             Condition_wait(current_pcb->conditional_variable, current_pcb->mutex_A, current_pcb);
+            current_pcb->state = waiting;
             // Don't enqueue the current PCB as now it's waiting.
 
             // Interrupt this PCB and run the scheduler to dispatch the next process.
@@ -331,12 +345,14 @@ void mutexLock(PCB_p pcb, Mutex_p mutex) {
     if (Mutex_lock(mutex, pcb)) {
         // The mutex lock succeeded. Resume process operation.
         printf("succeeded\n");
+        pcb->state = running;
     } else {
         // The mutex lock has failed.
         printf("blocked by PID %lu\n", mutex->key->PID);
         // The process has now been enqueued in the mutex queue, and will get the lock when it is its turn.
         // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
         // TODO: Move the enqueue into the scheduler.
+        current_pcb->state = waiting;
         current_pcb->PC--;  // Decrement so that the PCB will try to lock again next time it's run.
         PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
         runScheduler(
@@ -352,12 +368,14 @@ void mutexUnlock(PCB_p pcb, Mutex_p mutex) {
     if (Mutex_unlock(mutex, pcb)) {
         // The mutex unlock succeeded. Resume process operation.
         printf("succeeded\n");
+        pcb->state = running;
     } else {
         // The mutex unlock has failed.
         printf("blocked by PID %lu\n", mutex->key->PID);
         // The process has now been enqueued in the mutex queue, and will get the lock (and thus unlock) when it is its turn.
         // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
         // TODO: Move the enqueue into the scheduler.
+        current_pcb->state = waiting;
         current_pcb->PC--;  // Decrement so that the PCB will try to unlock again next time it's run.
         PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
         runScheduler(
@@ -426,7 +444,7 @@ void deadlockDetection() {
     }
 
     if (!deadlockDetected) {
-        printf("No deadlock detected.\n");
+        printf("No deadlocks detected.\n");
     }
 }
 
@@ -445,6 +463,7 @@ void createIOProcesses(int quantity, unsigned short priority) {
         populateIOTrapArrays(newPCB, 2);
 
         FIFOq_enqueue(new_PCBs, newPCB, &error);
+        processes_created++;
 
         char* stringPCB = PCB_toStringDetailed(newPCB, &error);
         printf("New IO process created: %s\n", stringPCB);
@@ -464,6 +483,7 @@ void createComputeProcesses(int quantity, unsigned short priority) {
         newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
 
         FIFOq_enqueue(new_PCBs, newPCB, &error);
+        processes_created++;
 
         char* stringPCB = PCB_toStringDetailed(newPCB, &error);
         printf("New compute process created: %s\n", stringPCB);
@@ -505,7 +525,9 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         producerPCB->conditional_variable = conditional;
 
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
+        processes_created++;
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
+        processes_created++;
         currentPair++;
 
         char* stringConsumerPCB = PCB_toStringDetailed(consumerPCB, &error);
@@ -544,7 +566,9 @@ void createResourceSharingProcesses(int quantity, unsigned short priority) {
         newPCB_B->mutex_B = mutex_B;
 
         FIFOq_enqueue(new_PCBs, newPCB_A, &error);
+        processes_created++;
         FIFOq_enqueue(new_PCBs, newPCB_B, &error);
+        processes_created++;
 
         char* stringPCB_A = PCB_toStringDetailed(newPCB_A, &error);
         char* stringPCB_B = PCB_toStringDetailed(newPCB_B, &error);

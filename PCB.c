@@ -1,3 +1,13 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #include "PCB.h"
 #include <stdlib.h>
 #include <stdio.h>
