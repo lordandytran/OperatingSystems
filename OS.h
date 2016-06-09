@@ -12,7 +12,7 @@
 #define MAX_PC 4000
 #define MIN_PC 1000
 #define MAX_TERMINATE 15
-#define TIMER_QUANTUM 500
+#define TIMER_QUANTUM 50
 #define STARVATION_THRESHOLD 5
 
 typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap, mutex_lock_trap, mutex_unlock_trap, condition_signal_and_wait_trap} TSR;
@@ -49,5 +49,6 @@ void execute_TSR(TSR routine);
 void topOffProcesses();
 void mutexLock(PCB_p pcb, Mutex_p mutex);
 void mutexUnlock(PCB_p pcb, Mutex_p mutex);
+void deadlockDetection();
 
 #endif

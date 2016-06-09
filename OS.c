@@ -2,7 +2,7 @@
 
 void OS_initialize() {
     int error;
-    deadlock = 0;
+    deadlock = FALSE;
 
     // Initialize all of the queues.
     new_PCBs = FIFOq_construct();
@@ -23,16 +23,16 @@ void OS_initialize() {
 
     // TODO: Revise
 	// Create a an initial set of processes.
-    //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
-    //createConsumerProducerProcessPairs(1, 1);
-    //createConsumerProducerProcessPairs(1, 2);
-    //createConsumerProducerProcessPairs(1, 3);
+    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    createConsumerProducerProcessPairs(1, 1);
+    createConsumerProducerProcessPairs(1, 2);
+    createConsumerProducerProcessPairs(1, 3);
     createResourceSharingProcesses(1, 1);
     createResourceSharingProcesses(1, 2);
     createResourceSharingProcesses(1, 3);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
-    //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
     CPU_initialize();
@@ -165,6 +165,13 @@ void runScheduler(Interrupt interrupt) {
 
     // Housekeeping work.
     starvationDetection();
+    // Only do this every tenth time.
+    static int count = 10;
+    count--;
+    if (count == 0) {
+        deadlockDetection();
+        count = 10;
+    }
 
     // Free all terminated PCBs.
     while (!FIFOq_isEmpty(terminated_PCBs, &error)) {
@@ -386,6 +393,40 @@ void starvationDetection() {
                 PriorityQ_enqueue(ready_PCBs, boosted, &error);
             }
         }
+    }
+}
+
+void deadlockDetection() {
+    int deadlockDetected = FALSE;
+
+    for (int i = 1; i < MAX_PRIORITY; i++) {
+        struct Node* current = ready_PCBs->queue_array[i]->front;
+        while (current != NULL) {
+            PCB_p pcb_A = current->value;
+
+            if (((PCB_p) current->value)->type == resource_user_A) {
+                struct Node* current = ready_PCBs->queue_array[i]->front;
+                while (current != NULL) {
+                    PCB_p pcb_B;
+
+                    if (((PCB_p) current->value)->type == resource_user_B) {
+                        pcb_B = current->value;
+
+                        // Check for a circular dependency.
+                        if (pcb_A->mutex_B->key == pcb_B && pcb_B->mutex_A->key == pcb_A) {
+                            printf("Deadlock detected for processes PID %lu and PID %lu\n", pcb_A->PID, pcb_B->PID);
+                            deadlockDetected = TRUE;
+                        }
+                    }
+                    current = current->next;
+                }
+            }
+            current = current->next;
+        }
+    }
+
+    if (!deadlockDetected) {
+        printf("No deadlock detected.\n");
     }
 }
 
