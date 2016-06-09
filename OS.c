@@ -22,16 +22,16 @@ void OS_initialize() {
 
     // TODO: Revise
 	// Create a an initial set of processes.
-    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
     createConsumerProducerProcessPairs(1, 1);
-    createConsumerProducerProcessPairs(1, 2);
-    createConsumerProducerProcessPairs(1, 3);
-    createResourceSharingProcesses(1, 2, 1);
-    createResourceSharingProcesses(1, 2, 2);
-    createResourceSharingProcesses(1, 2, 3);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+    //createConsumerProducerProcessPairs(1, 2);
+    //createConsumerProducerProcessPairs(1, 3);
+    //createResourceSharingProcesses(1, 2, 1);
+    //createResourceSharingProcesses(1, 2, 2);
+    //createResourceSharingProcesses(1, 2, 3);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
     CPU_initialize();
@@ -41,7 +41,7 @@ void OS_initialize() {
 void OS_loop() {
     int error;
 
-    topOffProcesses();
+    //topOffProcesses();
 
     // Run the current process until the next interrupt or trap call.
     char* string = PCB_toString(current_pcb, &error);
@@ -92,7 +92,6 @@ void execute_ISR(Interrupt interrupt) {
             printf("Trap requested by %s\n", PCB_string);
 
             execute_TSR(trap);
-            runScheduler(trap_interrupt);
 
             break;
         }
@@ -203,6 +202,8 @@ void execute_TSR(TSR routine) {
             char* PCB_string = PCB_toString(current_pcb, &error);
             printf("I/O 1 Trap requested by %s\n", PCB_string);
             free(PCB_string);
+
+            runScheduler(trap_interrupt);
             break;
         }
         case io2_trap: {
@@ -212,6 +213,8 @@ void execute_TSR(TSR routine) {
             char* PCB_string = PCB_toString(current_pcb, &error);
             printf("I/O 2 Trap requested by %s\n", PCB_string);
             free(PCB_string);
+
+            runScheduler(trap_interrupt);
             break;
         }
         case terminate_trap: {
@@ -224,8 +227,53 @@ void execute_TSR(TSR routine) {
             free(PCB_string);
 
             current_pcb = NULL;
+            runScheduler(trap_interrupt);
             break;
         }
+        case mutex_lock_trap:
+            printf("PID %lu: requested lock on mutex M%lu - ", current_pcb->PID, current_pcb->shared_resource_mutex->ID);
+
+            if (Mutex_lock(current_pcb->shared_resource_mutex, current_pcb)) {
+                // The mutex lock succeeded. Resume process operation.
+                printf("succeeded\n");
+                return;
+            } else {
+                // The mutex lock has failed.
+                PCB_p blockingPCB = (PCB_p) current_pcb->shared_resource_mutex->key;
+                printf("blocked by PID %lu\n", blockingPCB->PID);
+                // The process has now been enqueued in the mutex queue, and will get the lock when it is its turn.
+                // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
+                // TODO: Move the enqueue into the scheduler.
+                PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
+                runScheduler(trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
+            }
+            break;
+        case mutex_unlock_trap:
+            printf("PID %lu: requested unlock on mutex M%lu - ", current_pcb->PID, current_pcb->shared_resource_mutex->ID);
+
+            if (Mutex_unlock(current_pcb->shared_resource_mutex, current_pcb)) {
+                // The mutex unlock succeeded. Resume process operation.
+                printf("succeeded\n");
+            } else {
+
+            }
+            break;
+        case condition_signal_and_wait_trap:
+            printf("PID %lu: sent signal on condition %lu\n", current_pcb->PID, current_pcb->conditional_variable->ID);
+
+            PCB_p returnedPCB = Condition_signal(current_pcb->conditional_variable, current_pcb);
+            if (returnedPCB != NULL) {
+                PriorityQ_enqueue(ready_PCBs, returnedPCB, &error);
+            }
+
+            printf("PID %lu: requested wait on condition %lu with mutex M%lu\n", current_pcb->PID,
+                   current_pcb->conditional_variable->ID, current_pcb->shared_resource_mutex->ID);
+            Condition_wait(current_pcb->conditional_variable, current_pcb->shared_resource_mutex, current_pcb);
+            // Don't enqueue the current PCB as now it's waiting.
+
+            // Interrupt this PCB and run the scheduler to dispatch the next process.
+            runScheduler(trap_interrupt);
+            break;
         case no_trap:
             // This shouldn't happen here.
             break;
@@ -328,6 +376,16 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         populateMutexPCArrays(producerPCB);
         producerPCB->pair_id = currentPair;
 
+        int* sharedResource = malloc(sizeof(int));
+        Mutex_p mutex = Mutex_constructor();
+        Conditional_p conditional = Conditional_constructor();
+        consumerPCB->shared_resource = sharedResource;
+        producerPCB->shared_resource = sharedResource;
+        consumerPCB->shared_resource_mutex = mutex;
+        producerPCB->shared_resource_mutex = mutex;
+        consumerPCB->conditional_variable = conditional;
+        producerPCB->conditional_variable = conditional;
+
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
         currentPair++;
@@ -393,11 +451,11 @@ void topOffProcesses() {
 }
 
 void populateMutexPCArrays(PCB_p pcb) {
-    int lockPCs[MUTEX_PC_QUANTITY] = {10, 30, 50, 70};
-    memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(int));
+    unsigned long lockPCs[MUTEX_PC_QUANTITY] = {5, 15, 25, 35};
+    memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 
-    int unlockPCs[MUTEX_PC_QUANTITY] = {20, 40, 60, 80};
-    memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(int));
+    int unlockPCs[MUTEX_PC_QUANTITY] = {10, 20, 30, 40};
+    memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 }
 
 // Populates the passed I/O device's array of the passed PCB with random PC values.

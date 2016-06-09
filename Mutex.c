@@ -9,6 +9,7 @@ Mutex_p Mutex_constructor() {
 	mutex->key = NULL;
 	mutex->locked = FALSE;
 	mutex->wait = FIFOq_construct();
+	mutex->destroyed = FALSE;
     id++;
 	return mutex;
 }
@@ -49,10 +50,56 @@ int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
 		return TRUE;
 	}
 	else {
-		FIFOq_enqueue(mut->wait, pcb, &error);
+		//FIFOq_enqueue(mut->wait, pcb, &error); try_lock doesn't put the pcb into the waiting queue.
 		return FALSE;
 	}
 }
+
+
+
+Conditional_p Conditional_constructor() {
+    Conditional_p conditional = malloc(sizeof(conditional));
+    static unsigned long id_counter = 0;
+    conditional->ID = id_counter;
+    id_counter++;
+    conditional->waitingPCB = NULL;
+    conditional->mutex = NULL;
+}
+
+void Conditional_destructor(Conditional_p conditional) {
+    // If the waiting PCB hasn't been saved and its reference set to NULL, too bad.
+    if (conditional->waitingPCB != NULL) {
+        PCB_destruct(conditional->waitingPCB);
+    }
+
+    // If the mutex hasn't been saved and its reference set to NULL, too bad.
+    if (conditional->mutex) {
+        // destroy the mutex
+    }
+
+    free(conditional);
+}
+
+void Condition_wait(Conditional_p conditional, Mutex_p mutex, PCB_p pcb) {
+    // Make sure the requesting PCB doesn't already have a lock on the mutex.
+    Mutex_unlock(mutex, pcb);
+
+    conditional->mutex = mutex;
+    conditional->waitingPCB = pcb;
+}
+
+PCB_p Condition_signal(Conditional_p conditional, PCB_p pcb) {
+    PCB_p returningPCB = conditional->waitingPCB;
+    if (returningPCB != NULL) {
+        Mutex_lock(conditional->mutex, returningPCB);
+        conditional->waitingPCB = NULL;
+        conditional->mutex = NULL;
+    }
+    return returningPCB;
+}
+
+
+
 
 //Force unlocks and replaces controller with next in queue. Dangerous
 void Mutex_next_Controller(Mutex_p mut) {
