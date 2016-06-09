@@ -1,9 +1,19 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #include "PCB.h"
 #include <stdlib.h>
 #include <stdio.h>
 
 PCB_p PCB_construct() {
-	PCB_p pcb = (PCB_p) malloc(sizeof(PCB));
+	PCB_p pcb = (PCB_p) malloc(sizeof(struct pcb_t));
 	return pcb;
 }
 
@@ -74,8 +84,10 @@ char* PCB_type(PCB_p pcb, int* error) {
             return "producer";
         case consumer:
             return "consumer";
-        case resource_user:
-            return "resource-user";
+        case resource_user_A:
+            return "resource-user-A";
+        case resource_user_B:
+            return "resource-user-B";
         case idle:
             return "idle";
     }
@@ -140,7 +152,7 @@ char* PCB_toStringDetailed(PCB_p pcb, int* error) {
             sprintf(str, "PID: 0x%X, Priority: 0x%X, Type: %s, State: %s, PC: 0x%X, maxPC: 0x%X, Terminate: 0x%X, Pair ID: 0x%X",
                     pcb->PID, pcb->priority, PCB_type(pcb, error), PCB_state(pcb, error), pcb->PC, pcb->maxPC, pcb->terminate, pcb->pair_id);
             break;
-        case resource_user: {
+        case resource_user_A: case resource_user_B: {
             char *lock = toStringLockUnlockArray(pcb, error, 1);
             char *unlock = toStringLockUnlockArray(pcb, error, 2);
 

@@ -1,3 +1,13 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #ifndef OS_H
 #define OS_H
 
@@ -6,12 +16,14 @@
 
 #include "FIFOq.h"
 #include "PriorityQ.h"
+#include "Mutex.h"
 
 #define MAX_PROCESSES 20
 #define MAX_PC 4000
 #define MIN_PC 1000
 #define MAX_TERMINATE 15
-#define TIMER_QUANTUM 1
+#define TIMER_QUANTUM 50
+#define STARVATION_THRESHOLD 5
 
 typedef enum tsr_type {io1_trap, io2_trap, terminate_trap, no_trap, mutex_lock_trap, mutex_unlock_trap, condition_signal_and_wait_trap} TSR;
 typedef enum interrupt_type {timer_interrupt, io1_interrupt, io2_interrupt, trap_interrupt, no_interrupt} Interrupt;
@@ -22,6 +34,9 @@ typedef enum device_type {timer_device, io1_device, io2_device} Device;
 PCB_p current_pcb;
 PCB_p idle_pcb;
 TSR trap;
+int deadlock;
+int processes_created;
+int processes_terminated;
 
 FIFOq_p new_PCBs;
 PriorityQ_p ready_PCBs;
@@ -37,12 +52,15 @@ void populateMutexPCArrays(PCB_p pcb);
 void populateIOTrapArrays(PCB_p pcb, int ioDevice);
 void createComputeProcesses(int quantity, unsigned short priority);
 void createConsumerProducerProcessPairs(int quantity, unsigned short priority);
-void createResourceSharingProcesses(int quantity, int processesPerResource, unsigned short priority);
+void createResourceSharingProcesses(int quantity, unsigned short priority);
 void execute_ISR(Interrupt interrupt);
 void runScheduler(Interrupt interrupt);
 void runDispatcher();
 void starvationDetection();
 void execute_TSR(TSR routine);
 void topOffProcesses();
+void mutexLock(PCB_p pcb, Mutex_p mutex);
+void mutexUnlock(PCB_p pcb, Mutex_p mutex);
+void deadlockDetection();
 
 #endif

@@ -1,10 +1,20 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #include "Mutex.h"
 
 #include <stdlib.h>
 
 Mutex_p Mutex_constructor() {
 	static unsigned long id = 0;
-	Mutex_p mutex = (Mutex_p)malloc(sizeof(Mutex));
+	Mutex_p mutex = (Mutex_p)malloc(sizeof(struct mutex_t));
 	mutex->ID = id;
 	mutex->key = NULL;
 	mutex->locked = FALSE;
@@ -31,13 +41,24 @@ int Mutex_lock(Mutex_p mut, PCB_p pcb) {
 //TRUE if Successful. FALSE if unlock failed.
 int Mutex_unlock(Mutex_p mut, PCB_p pcb) {
 	int error = 0;
+
+    // If the mutex is already unlocked.
 	if (mut->locked == FALSE)
 		return TRUE;
+
+    // If the mutex is locked by the passed pcb, unlock it.
 	if (pcb == mut->key) {
 		mut->locked = FALSE;
+
+        // If there are other PCBs waiting to acquire the lock, give them priority.
+        if(mut->wait->size != 0) {
+            mut->key = FIFOq_dequeue(mut->wait, &error);
+            FIFOq_enqueue(mut->wait, pcb, &error);
+        } else {
+            mut->key = NULL;
+        }
 		return TRUE;
 	}
-	FIFOq_enqueue(mut->wait, pcb, &error);
 	return FALSE;
 }
 
@@ -55,15 +76,24 @@ int Mutex_trylock(Mutex_p mut, PCB_p pcb) {
 	}
 }
 
+// Removes all instances of the passed pcbs in the waiting list and the key. Useful for process termination.
+void Mutex_remove(Mutex_p mut, PCB_p pcb) {
+    int error = 0;
+    Mutex_unlock(mut, pcb);
+    FIFOq_remove(mut->wait, pcb, &error);
+}
+
 
 
 Conditional_p Conditional_constructor() {
-    Conditional_p conditional = malloc(sizeof(conditional));
+    Conditional_p conditional = malloc(sizeof(struct conditional_t));
     static unsigned long id_counter = 0;
     conditional->ID = id_counter;
     id_counter++;
     conditional->waitingPCB = NULL;
     conditional->mutex = NULL;
+
+	return conditional;
 }
 
 void Conditional_destructor(Conditional_p conditional) {
@@ -91,14 +121,11 @@ void Condition_wait(Conditional_p conditional, Mutex_p mutex, PCB_p pcb) {
 PCB_p Condition_signal(Conditional_p conditional, PCB_p pcb) {
     PCB_p returningPCB = conditional->waitingPCB;
     if (returningPCB != NULL) {
-        Mutex_lock(conditional->mutex, returningPCB);
         conditional->waitingPCB = NULL;
         conditional->mutex = NULL;
     }
     return returningPCB;
 }
-
-
 
 
 //Force unlocks and replaces controller with next in queue. Dangerous

@@ -1,19 +1,28 @@
+/*
+ * TCSS 422 - Spring 2016
+ * Final Project
+ * Team 2:
+ * Derek Moore
+ * Ashton Ohms
+ * Anh Tran
+ * Vitaliy Radchishin
+*/
+
 #ifndef PCB_H
 #define PCB_H
 
 #include <time.h>
 #include "errors.h"
-#include "Mutex.h"
 
 #define IO_TRAP_QUANTITY 4
 #define MUTEX_PC_QUANTITY 4
-#define MAX_PC_VAL 5000
-#define STARVATION_THRESHOLD 15
 
 enum state_type { new, ready, running, interrupted, waiting, terminated };
-enum pcb_type { io, compute, producer, consumer, resource_user, idle };
+enum pcb_type { io, compute, producer, consumer, resource_user_A, resource_user_B, idle };
 
-typedef struct pcb {
+typedef struct pcb_t * PCB_p;
+
+struct pcb_t {
 	unsigned long PID;
 	unsigned short priority;    // Note: Uninitialized
 	unsigned short priority_boost;
@@ -34,12 +43,12 @@ typedef struct pcb {
     int* shared_resource;	// Note: In a producer/consumer scenario, this should be freed when the producer is terminated.
 							// In a resource-user scenario, this should be freed when the last resource user is terminated.
     struct conditional_t* conditional_variable;
-	struct mutex_t* shared_resource_mutex;
+	struct mutex_t* mutex_A;
+	struct mutex_t* mutex_B;
+	unsigned long use_resource_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID does its consumer/producer operations.
 	unsigned long lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned long unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
-} PCB;
-typedef PCB* PCB_p;
-
+};
 
 PCB_p PCB_construct(void);
 void PCB_destruct(PCB_p);
