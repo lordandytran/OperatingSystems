@@ -24,6 +24,7 @@ typedef enum device_type {timer_device, io1_device, io2_device} Device;
 PCB_p current_pcb;
 PCB_p idle_pcb;
 TSR trap;
+int deadlock;
 
 FIFOq_p new_PCBs;
 PriorityQ_p ready_PCBs;
@@ -46,5 +47,7 @@ void runDispatcher();
 void starvationDetection();
 void execute_TSR(TSR routine);
 void topOffProcesses();
+void mutexLock(PCB_p pcb, Mutex_p mutex);
+void mutexUnlock(PCB_p pcb, Mutex_p mutex);
 
 #endif

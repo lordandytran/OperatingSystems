@@ -2,6 +2,7 @@
 
 void OS_initialize() {
     int error;
+    deadlock = 0;
 
     // Initialize all of the queues.
     new_PCBs = FIFOq_construct();
@@ -22,16 +23,16 @@ void OS_initialize() {
 
     // TODO: Revise
 	// Create a an initial set of processes.
-    createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
-    createConsumerProducerProcessPairs(1, 1);
-    createConsumerProducerProcessPairs(1, 2);
-    createConsumerProducerProcessPairs(1, 3);
-    //createResourceSharingProcesses(1, 1);
+    //createComputeProcesses((int) (MAX_PROCESSES * 0.05), 0);
+    //createConsumerProducerProcessPairs(1, 1);
+    //createConsumerProducerProcessPairs(1, 2);
+    //createConsumerProducerProcessPairs(1, 3);
+    createResourceSharingProcesses(1, 1);
     //createResourceSharingProcesses(1, 2);
     //createResourceSharingProcesses(1, 3);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
-    createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
+    //createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
 
     // Initialize the system.
     CPU_initialize();
@@ -41,7 +42,7 @@ void OS_initialize() {
 void OS_loop() {
     int error;
 
-    topOffProcesses();
+    //topOffProcesses();
 
     // Run the current process until the next interrupt or trap call.
     char* string = PCB_toString(current_pcb, &error);
@@ -49,7 +50,6 @@ void OS_loop() {
     free(string);
     Interrupt interrupt = CPU_run();
 
-    starvationDetection();
     execute_ISR(interrupt);
 }
 
@@ -103,6 +103,7 @@ void execute_ISR(Interrupt interrupt) {
 
 void runScheduler(Interrupt interrupt) {
     int error;
+    starvationDetection();
 
     // Add any newly created PCBs to the ready queue.
     while (!FIFOq_isEmpty(new_PCBs, &error)) {
@@ -231,40 +232,57 @@ void execute_TSR(TSR routine) {
             break;
         }
         case mutex_lock_trap:
-            printf("PID %lu: requested lock on mutex M%lu - ", current_pcb->PID, current_pcb->mutex_A->ID);
-
-            if (Mutex_lock(current_pcb->mutex_A, current_pcb)) {
-                // The mutex lock succeeded. Resume process operation.
-                printf("succeeded\n");
-                return;
+            if (current_pcb->type == resource_user_A) {
+                // If this is a resource_user "A" process lock mutex A then B.
+                if (!Mutex_Is_Locked(current_pcb->mutex_A) || current_pcb->mutex_A->key != current_pcb) {
+                    mutexLock(current_pcb, current_pcb->mutex_A);
+                } else if (!Mutex_Is_Locked(current_pcb->mutex_B) || current_pcb->mutex_B->key != current_pcb) {
+                    mutexLock(current_pcb, current_pcb->mutex_B);
+                }
+            } else if (current_pcb->type == resource_user_B) {
+                // If this is a resource_user "B" process then lock A then B if no-deadlock, and B then A if deadlock.
+                if (!deadlock) {
+                    if (!Mutex_Is_Locked(current_pcb->mutex_A) || current_pcb->mutex_A->key != current_pcb) {
+                        mutexLock(current_pcb, current_pcb->mutex_A);
+                    } else if (!Mutex_Is_Locked(current_pcb->mutex_B) || current_pcb->mutex_B->key != current_pcb) {
+                        mutexLock(current_pcb, current_pcb->mutex_B);
+                    }
+                } else {
+                    if (!Mutex_Is_Locked(current_pcb->mutex_B) || current_pcb->mutex_B->key != current_pcb) {
+                        mutexLock(current_pcb, current_pcb->mutex_B);
+                    } else if (!Mutex_Is_Locked(current_pcb->mutex_A) || current_pcb->mutex_A->key != current_pcb) {
+                        mutexLock(current_pcb, current_pcb->mutex_A);
+                    }
+                }
             } else {
-                // The mutex lock has failed.
-                PCB_p blockingPCB = (PCB_p) current_pcb->mutex_A->key;
-                printf("blocked by PID %lu\n", blockingPCB->PID);
-                // The process has now been enqueued in the mutex queue, and will get the lock when it is its turn.
-                // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
-                // TODO: Move the enqueue into the scheduler.
-                PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
-                runScheduler(trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
+                mutexLock(current_pcb, current_pcb->mutex_A);
             }
             break;
         case mutex_unlock_trap:
-            printf("PID %lu: requested unlock on mutex M%lu - ", current_pcb->PID, current_pcb->mutex_A->ID);
-
-            if (Mutex_unlock(current_pcb->mutex_A, current_pcb)) {
-                // The mutex unlock succeeded. Resume process operation.
-                printf("succeeded\n");
-                return;
+            if (current_pcb->type == resource_user_A) {
+                // If this is a resource_user "A" process unlock mutex B then A.
+                if (Mutex_Is_Locked(current_pcb->mutex_B)) {
+                    mutexUnlock(current_pcb, current_pcb->mutex_B);
+                } else if (Mutex_Is_Locked(current_pcb->mutex_A)) {
+                    mutexUnlock(current_pcb, current_pcb->mutex_A);
+                }
+            } else if (current_pcb->type == resource_user_B) {
+                // If this is a resource_user "B" process then unlock B then A if no-deadlock, and A then B if deadlock.
+                if (!deadlock) {
+                    if (Mutex_Is_Locked(current_pcb->mutex_B)) {
+                        mutexUnlock(current_pcb, current_pcb->mutex_B);
+                    } else if (Mutex_Is_Locked(current_pcb->mutex_A)) {
+                        mutexUnlock(current_pcb, current_pcb->mutex_B);
+                    }
+                } else {
+                    if (Mutex_Is_Locked(current_pcb->mutex_A)) {
+                        mutexUnlock(current_pcb, current_pcb->mutex_A);
+                    } else if (Mutex_Is_Locked(current_pcb->mutex_B)) {
+                        mutexUnlock(current_pcb, current_pcb->mutex_B);
+                    }
+                }
             } else {
-                // The mutex unlock has failed.
-                PCB_p blockingPCB = (PCB_p) current_pcb->mutex_A->key;
-                printf("blocked by PID %lu\n", blockingPCB->PID);
-                // The process has now been enqueued in the mutex queue, and will get the lock
-                // when it is its turn (and thus will be able to unlock).
-                // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
-                // TODO: Move the enqueue into the scheduler.
-                PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
-                runScheduler(trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
+                mutexUnlock(current_pcb, current_pcb->mutex_A);
             }
             break;
         case condition_signal_and_wait_trap:
@@ -286,6 +304,48 @@ void execute_TSR(TSR routine) {
         case no_trap:
             // This shouldn't happen here.
             break;
+    }
+}
+
+void mutexLock(PCB_p pcb, Mutex_p mutex) {
+    int error;
+
+    printf("PID %lu: requested lock on mutex M%lu - ", pcb->PID, mutex->ID);
+
+    if (Mutex_lock(mutex, pcb)) {
+        // The mutex lock succeeded. Resume process operation.
+        printf("succeeded\n");
+    } else {
+        // The mutex lock has failed.
+        printf("blocked by PID %lu\n", mutex->key->PID);
+        // The process has now been enqueued in the mutex queue, and will get the lock when it is its turn.
+        // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
+        // TODO: Move the enqueue into the scheduler.
+        current_pcb->PC--;  // Decrement so that the PCB will try to lock again next time it's run.
+        PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
+        runScheduler(
+                trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
+    }
+}
+
+void mutexUnlock(PCB_p pcb, Mutex_p mutex) {
+    int error;
+
+    printf("PID %lu: requested unlock on mutex M%lu - ", pcb->PID, mutex->ID);
+
+    if (Mutex_unlock(mutex, pcb)) {
+        // The mutex unlock succeeded. Resume process operation.
+        printf("succeeded\n");
+    } else {
+        // The mutex unlock has failed.
+        printf("blocked by PID %lu\n", mutex->key->PID);
+        // The process has now been enqueued in the mutex queue, and will get the lock (and thus unlock) when it is its turn.
+        // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
+        // TODO: Move the enqueue into the scheduler.
+        current_pcb->PC--;  // Decrement so that the PCB will try to unlock again next time it's run.
+        PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
+        runScheduler(
+                trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
     }
 }
 
@@ -429,14 +489,18 @@ void createResourceSharingProcesses(int quantity, unsigned short priority) {
         Mutex_p mutex_A = Mutex_constructor();
         Mutex_p mutex_B = Mutex_constructor();
         newPCB_A->mutex_A = mutex_A;
+        newPCB_A->mutex_B = mutex_B;
+        newPCB_B->mutex_A = mutex_A;
         newPCB_B->mutex_B = mutex_B;
 
         FIFOq_enqueue(new_PCBs, newPCB_A, &error);
         FIFOq_enqueue(new_PCBs, newPCB_B, &error);
 
-        char* stringPCB = PCB_toStringDetailed(newPCB_A, &error);
-        printf("New resource-using process created: %s\n", stringPCB);
-        free(stringPCB);
+        char* stringPCB_A = PCB_toStringDetailed(newPCB_A, &error);
+        char* stringPCB_B = PCB_toStringDetailed(newPCB_B, &error);
+        printf("New resource-using processes created: %s | %s\n", stringPCB_A, stringPCB_B);
+        free(stringPCB_A);
+        free(stringPCB_B);
     }
 }
 
@@ -471,10 +535,10 @@ void topOffProcesses() {
 }
 
 void populateMutexPCArrays(PCB_p pcb) {
-    unsigned long lockPCs[MUTEX_PC_QUANTITY] = {50, 150, 2500, 3500};
+    unsigned long lockPCs[MUTEX_PC_QUANTITY] = {50, 150, 500, 800};
     memcpy(pcb->lock_pcs, lockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 
-    int unlockPCs[MUTEX_PC_QUANTITY] = {100, 200, 3000, 4000};
+    unsigned long unlockPCs[MUTEX_PC_QUANTITY] = {180, 200, 700, 900};
     memcpy(pcb->unlock_pcs, unlockPCs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 }
 
