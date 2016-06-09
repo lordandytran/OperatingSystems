@@ -61,7 +61,7 @@ TSR executeCurrentProcess() {
                 // The above if statement won't be executed, as the PC will now be incremented one past the mutex lock PC value.
             }
             // The producer has just successfully acquired a mutex lock (so the mutex is locked, variable is not incremented)
-            if (current_pcb->shared_resource_mutex->key == current_pcb) {
+            if (current_pcb->mutex_A->key == current_pcb) {
                 // Now that we have the mutex, we may now write to memory.
                 (*current_pcb->shared_resource)++;
                 printf("Producer #%d writing %d to shared memory.\n", current_pcb->pair_id, *current_pcb->shared_resource);
@@ -81,7 +81,7 @@ TSR executeCurrentProcess() {
                 // The above if statement won't be executed, as the PC will now be incremented one past the mutex lock PC value.
             }
             // The consumer has just successfully acquired a mutex lock (so the mutex is locked, variable is not read)
-            if (current_pcb->shared_resource_mutex->key == current_pcb) {
+            if (current_pcb->mutex_A->key == current_pcb) {
                 // Now that we have the mutex, we may now read from memory.
                 printf("Consumer #%d reading %d from shared memory.\n", current_pcb->pair_id, *current_pcb->shared_resource);
                 // Now that the shared memory is read, signal the producer to write to it.
@@ -89,11 +89,19 @@ TSR executeCurrentProcess() {
                 return condition_signal_and_wait_trap;
             }
             break;
-        case resource_user:
+        case resource_user_A: case resource_user_B:
+            // Determine if the current PC of this process wants to lock/unlock the mutexes.
+            if (mutexRequest(current_pcb->lock_pcs, current_pcb->PC)) {
+                return mutex_lock_trap;
+            } else if (mutexRequest(current_pcb->unlock_pcs, current_pcb->PC)) {
+                return mutex_unlock_trap;
+            }
             break;
         case compute:
+            // Nothing really to do. Just use up CPU cycles.
             break;
         case idle:
+            // Nothing really to do. Just use up CPU cycles.
             break;
     }
 

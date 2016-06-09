@@ -26,9 +26,9 @@ void OS_initialize() {
     createConsumerProducerProcessPairs(1, 1);
     createConsumerProducerProcessPairs(1, 2);
     createConsumerProducerProcessPairs(1, 3);
-    //createResourceSharingProcesses(1, 2, 1);
-    //createResourceSharingProcesses(1, 2, 2);
-    //createResourceSharingProcesses(1, 2, 3);
+    //createResourceSharingProcesses(1, 1);
+    //createResourceSharingProcesses(1, 2);
+    //createResourceSharingProcesses(1, 3);
     createIOProcesses((int) ((MAX_PROCESSES * 0.8) - 4), 1);
     createIOProcesses((int) ((MAX_PROCESSES * 0.1) - 4), 2);
     createIOProcesses((int) ((MAX_PROCESSES * 0.05) - 4), 3);
@@ -231,15 +231,15 @@ void execute_TSR(TSR routine) {
             break;
         }
         case mutex_lock_trap:
-            printf("PID %lu: requested lock on mutex M%lu - ", current_pcb->PID, current_pcb->shared_resource_mutex->ID);
+            printf("PID %lu: requested lock on mutex M%lu - ", current_pcb->PID, current_pcb->mutex_A->ID);
 
-            if (Mutex_lock(current_pcb->shared_resource_mutex, current_pcb)) {
+            if (Mutex_lock(current_pcb->mutex_A, current_pcb)) {
                 // The mutex lock succeeded. Resume process operation.
                 printf("succeeded\n");
                 return;
             } else {
                 // The mutex lock has failed.
-                PCB_p blockingPCB = (PCB_p) current_pcb->shared_resource_mutex->key;
+                PCB_p blockingPCB = (PCB_p) current_pcb->mutex_A->key;
                 printf("blocked by PID %lu\n", blockingPCB->PID);
                 // The process has now been enqueued in the mutex queue, and will get the lock when it is its turn.
                 // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
@@ -249,13 +249,22 @@ void execute_TSR(TSR routine) {
             }
             break;
         case mutex_unlock_trap:
-            printf("PID %lu: requested unlock on mutex M%lu - ", current_pcb->PID, current_pcb->shared_resource_mutex->ID);
+            printf("PID %lu: requested unlock on mutex M%lu - ", current_pcb->PID, current_pcb->mutex_A->ID);
 
-            if (Mutex_unlock(current_pcb->shared_resource_mutex, current_pcb)) {
+            if (Mutex_unlock(current_pcb->mutex_A, current_pcb)) {
                 // The mutex unlock succeeded. Resume process operation.
                 printf("succeeded\n");
+                return;
             } else {
-
+                // The mutex unlock has failed.
+                PCB_p blockingPCB = (PCB_p) current_pcb->mutex_A->key;
+                printf("blocked by PID %lu\n", blockingPCB->PID);
+                // The process has now been enqueued in the mutex queue, and will get the lock
+                // when it is its turn (and thus will be able to unlock).
+                // So enqueue PCB back into the ready queue and run the scheduler to dispatch the next process.
+                // TODO: Move the enqueue into the scheduler.
+                PriorityQ_enqueue(ready_PCBs, current_pcb, &error);
+                runScheduler(trap_interrupt);   // Current process has been blocked, run scheduler to dispatch the next one.
             }
             break;
         case condition_signal_and_wait_trap:
@@ -267,8 +276,8 @@ void execute_TSR(TSR routine) {
             }
 
             printf("PID %lu: requested wait on condition %lu with mutex M%lu\n", current_pcb->PID,
-                   current_pcb->conditional_variable->ID, current_pcb->shared_resource_mutex->ID);
-            Condition_wait(current_pcb->conditional_variable, current_pcb->shared_resource_mutex, current_pcb);
+                   current_pcb->conditional_variable->ID, current_pcb->mutex_A->ID);
+            Condition_wait(current_pcb->conditional_variable, current_pcb->mutex_A, current_pcb);
             // Don't enqueue the current PCB as now it's waiting.
 
             // Interrupt this PCB and run the scheduler to dispatch the next process.
@@ -295,7 +304,6 @@ void starvationDetection() {
             // Increment the starvation count for the front node
             PCB_p head = ((PCB_p)levelQueue->front->value);
             head->starvation_count++;
-            //printf("Starvation count for PID %lu: %d\n", head->PID, head->starvation_count);
 
             // Check if the starvation count exceeds starvation threshold
             if(head->starvation_count > STARVATION_THRESHOLD) {
@@ -381,15 +389,10 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
         Conditional_p conditional = Conditional_constructor();
         consumerPCB->shared_resource = sharedResource;
         producerPCB->shared_resource = sharedResource;
-        consumerPCB->shared_resource_mutex = mutex;
-        producerPCB->shared_resource_mutex = mutex;
+        consumerPCB->mutex_A = mutex;
+        producerPCB->mutex_A = mutex;
         consumerPCB->conditional_variable = conditional;
         producerPCB->conditional_variable = conditional;
-
-        // Perhaps this can be generated later.
-        unsigned long pcs[MUTEX_PC_QUANTITY] = {500, 1000, 1500, 3000};
-        memcpy(consumerPCB->use_resource_pcs, pcs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
-        memcpy(producerPCB->use_resource_pcs, pcs, MUTEX_PC_QUANTITY * sizeof(unsigned long));
 
         FIFOq_enqueue(new_PCBs, consumerPCB, &error);
         FIFOq_enqueue(new_PCBs, producerPCB, &error);
@@ -403,25 +406,37 @@ void createConsumerProducerProcessPairs(int quantity, unsigned short priority) {
     }
 }
 
-void createResourceSharingProcesses(int quantity, int processesPerResource, unsigned short priority) {
+void createResourceSharingProcesses(int quantity, unsigned short priority) {
     int error;
 
     for (int i = 0; i < quantity; i++) {
-        for (int j = 0; j < processesPerResource; j++) {
-            PCB_p newPCB = PCB_construct();
-            PCB_init(newPCB, &error);
-            newPCB->priority = priority;
-            newPCB->type = resource_user;
-            newPCB->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
-            newPCB->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
-            populateMutexPCArrays(newPCB);
+        PCB_p newPCB_A = PCB_construct();
+        PCB_init(newPCB_A, &error);
+        newPCB_A->priority = priority;
+        newPCB_A->type = resource_user_A;
+        newPCB_A->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        newPCB_A->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+        populateMutexPCArrays(newPCB_A);
 
-            FIFOq_enqueue(new_PCBs, newPCB, &error);
+        PCB_p newPCB_B = PCB_construct();
+        PCB_init(newPCB_B, &error);
+        newPCB_B->priority = priority;
+        newPCB_B->type = resource_user_B;
+        newPCB_B->maxPC = (unsigned long) ((rand() % MAX_PC) + MIN_PC);   // MIN_PC <= maximum PC of this PCB <= MAX_PC
+        newPCB_B->terminate = (unsigned int) (rand() % MAX_TERMINATE);    // 0 <= terminate <= MAX_TERMINATE
+        populateMutexPCArrays(newPCB_B);
 
-            char* stringPCB = PCB_toStringDetailed(newPCB, &error);
-            printf("New resource-using process created: %s\n", stringPCB);
-            free(stringPCB);
-        }
+        Mutex_p mutex_A = Mutex_constructor();
+        Mutex_p mutex_B = Mutex_constructor();
+        newPCB_A->mutex_A = mutex_A;
+        newPCB_B->mutex_B = mutex_B;
+
+        FIFOq_enqueue(new_PCBs, newPCB_A, &error);
+        FIFOq_enqueue(new_PCBs, newPCB_B, &error);
+
+        char* stringPCB = PCB_toStringDetailed(newPCB_A, &error);
+        printf("New resource-using process created: %s\n", stringPCB);
+        free(stringPCB);
     }
 }
 
@@ -441,7 +456,7 @@ void topOffProcesses() {
                 createIOProcesses(1, priority);
                 break;
             case 1:
-                createResourceSharingProcesses(1, 2, priority);
+                createResourceSharingProcesses(1, priority);
                 break;
             case 2:
                 createConsumerProducerProcessPairs(1, priority);

@@ -8,7 +8,7 @@
 #define MUTEX_PC_QUANTITY 4
 
 enum state_type { new, ready, running, interrupted, waiting, terminated };
-enum pcb_type { io, compute, producer, consumer, resource_user, idle };
+enum pcb_type { io, compute, producer, consumer, resource_user_A, resource_user_B, idle };
 
 typedef struct pcb_t * PCB_p;
 
@@ -33,8 +33,9 @@ struct pcb_t {
     int* shared_resource;	// Note: In a producer/consumer scenario, this should be freed when the producer is terminated.
 							// In a resource-user scenario, this should be freed when the last resource user is terminated.
     struct conditional_t* conditional_variable;
-	struct mutex_t* shared_resource_mutex;
-    unsigned long use_resource_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID does its consumer/producer operations.
+	struct mutex_t* mutex_A;
+	struct mutex_t* mutex_B;
+	unsigned long use_resource_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID does its consumer/producer operations.
 	unsigned long lock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls a lock
 	unsigned long unlock_pcs[MUTEX_PC_QUANTITY]; // Steps where this PID calls an unlock
 };

@@ -31,12 +31,19 @@ int Mutex_lock(Mutex_p mut, PCB_p pcb) {
 //TRUE if Successful. FALSE if unlock failed.
 int Mutex_unlock(Mutex_p mut, PCB_p pcb) {
 	int error = 0;
+
+    // If the mutex is already unlocked.
 	if (mut->locked == FALSE)
 		return TRUE;
+
+    // If the mutex is locked by the passed pcb, unlock it.
 	if (pcb == mut->key) {
 		mut->locked = FALSE;
+
+        // If there are other PCBs waiting to acquire the lock, give them priority.
         if(mut->wait->size != 0) {
             mut->key = FIFOq_dequeue(mut->wait, &error);
+            FIFOq_enqueue(mut->wait, pcb, &error);
         } else {
             mut->key = NULL;
         }

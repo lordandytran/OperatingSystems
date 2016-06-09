@@ -39,7 +39,7 @@ void populateMutexPCArrays(PCB_p pcb);
 void populateIOTrapArrays(PCB_p pcb, int ioDevice);
 void createComputeProcesses(int quantity, unsigned short priority);
 void createConsumerProducerProcessPairs(int quantity, unsigned short priority);
-void createResourceSharingProcesses(int quantity, int processesPerResource, unsigned short priority);
+void createResourceSharingProcesses(int quantity, unsigned short priority);
 void execute_ISR(Interrupt interrupt);
 void runScheduler(Interrupt interrupt);
 void runDispatcher();
